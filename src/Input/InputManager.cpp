@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <filesystem>
 
 #include "Input/InputManager.h"
 
@@ -106,6 +107,10 @@ namespace QuickLoot::Input
 	// added to a new user event group QUICKLOOT_EVENT_GROUP_FLAG. This can then be toggled via ControlMap::ToggleControls.
 	void InputManager::UpdateMappings()
 	{
+		// The game rebuilt its mappings: the ones More had taken may be gone, so forget them.
+		_liveTaken.clear();
+		_moreLive = false;
+
 		ReloadKeybindings();
 
 		logger::info("Updating event mappings");
@@ -149,6 +154,13 @@ namespace QuickLoot::Input
 				std::string_view(mapping.eventID), static_cast<int>(deviceType), mapping.inputKey);
 		});
 
+		// More was held during the rebuild: the walk above cleared what it took, so take it again.
+		if (_moreLive) {
+			_liveTaken.clear();
+			_moreLive = false;
+			UpdateModifierStates();
+		}
+
 		LootMenuManager::RequestRefresh(RefreshFlags::kButtonBar);
 	}
 
@@ -182,6 +194,13 @@ namespace QuickLoot::Input
 		const auto eventKey = NormalizeDeviceKey(event->GetDevice(), event->GetIDCode());
 
 		if (_allModifierKeys.contains(eventKey)) {
+			// Fork: follow modifier keys from their own events too. The device's pressed state misses
+			// keys that reach the game as events only (input injected by other mods and tools).
+			if (event->IsDown() || event->IsHeld()) {
+				_heldModifierKeys.insert(eventKey);
+			} else if (event->IsUp()) {
+				_heldModifierKeys.erase(eventKey);
+			}
 			UpdateModifierStates();
 		}
 
@@ -317,6 +336,19 @@ namespace QuickLoot::Input
 			_keybindings.emplace_back(ControlGroup::kButtonBar, mapped("Ready Weapon", DeviceType::kKeyboard, KeyboardKey::kR), modNone, QuickLootAction::kTransfer, flagsNone);
 			_keybindings.emplace_back(ControlGroup::kButtonBar, mapped("Activate", DeviceType::kGamepad, GamepadInput::kA), modNone, QuickLootAction::kTake, flagsNone);
 			_keybindings.emplace_back(ControlGroup::kButtonBar, mapped("Ready Weapon", DeviceType::kGamepad, GamepadInput::kX), modNone, QuickLootAction::kTransfer, flagsNone);
+
+			// Fork: while More is held over a target with perk options, the same keys run those options,
+			// MKF's way: Activate, Ready Weapon, Jump (A / X / Y). Jump is only taken while More is held.
+			ReadMoreKeys();
+			const auto live = KeybindingFlags::kOnlyWhileLive;
+			const std::optional<DeviceKey> moreKb = _moreKeyKeyboard;
+			const std::optional<DeviceKey> morePad = _moreKeyGamepad;
+			_keybindings.emplace_back(ControlGroup::kButtonBar, mapped("Activate", DeviceType::kKeyboard, KeyboardKey::kE), moreKb, QuickLootAction::kPerkOption1, live);
+			_keybindings.emplace_back(ControlGroup::kButtonBar, mapped("Ready Weapon", DeviceType::kKeyboard, KeyboardKey::kR), moreKb, QuickLootAction::kPerkOption2, live);
+			_keybindings.emplace_back(ControlGroup::kButtonBar, mapped("Jump", DeviceType::kKeyboard, KeyboardKey::kSpacebar), moreKb, QuickLootAction::kPerkOption3, live);
+			_keybindings.emplace_back(ControlGroup::kButtonBar, mapped("Activate", DeviceType::kGamepad, GamepadInput::kA), morePad, QuickLootAction::kPerkOption1, live);
+			_keybindings.emplace_back(ControlGroup::kButtonBar, mapped("Ready Weapon", DeviceType::kGamepad, GamepadInput::kX), morePad, QuickLootAction::kPerkOption2, live);
+			_keybindings.emplace_back(ControlGroup::kButtonBar, mapped("Jump", DeviceType::kGamepad, GamepadInput::kY), morePad, QuickLootAction::kPerkOption3, live);
 		}
 
 		// Hardcoded keybindings for scrolling
@@ -350,6 +382,7 @@ namespace QuickLoot::Input
 		_allInputKeys.clear();
 		_allModifierKeys.clear();
 		_allHoldKeys.clear();
+		_heldModifierKeys.clear();
 
 		for (size_t i = 0; i < _keybindings.size(); ++i) {
 			auto& keybinding = _keybindings[i];
@@ -391,7 +424,8 @@ namespace QuickLoot::Input
 		const auto it = std::ranges::find_if(_keybindings, [&](const Keybinding& keybinding) {
 			return keybinding.inputKey.deviceType == deviceType &&
 			       keybinding.inputKey.keyCode == mapping.inputKey &&
-			       !keybinding.flags.all(KeybindingFlags::kGlobal);
+			       !keybinding.flags.all(KeybindingFlags::kGlobal) &&
+			       !keybinding.flags.all(KeybindingFlags::kOnlyWhileLive);
 		});
 
 		return it != _keybindings.end() ? &*it : nullptr;
@@ -423,6 +457,9 @@ namespace QuickLoot::Input
 
 	bool InputManager::IsKeyPressed(DeviceKey key)
 	{
+		if (_heldModifierKeys.contains(key)) {
+			return true;
+		}
 		const auto device = GetInputDevice(key.deviceType);
 		return device && device->IsPressed(key.keyCode);
 	}
@@ -477,6 +514,7 @@ namespace QuickLoot::Input
 	{
 		std::set<DeviceKey> suppressedInputKeys{};
 		bool requiresButtonBarUpdate = false;
+		bool moreLive = false;
 
 		// check keybindings with modifier first
 		for (auto& keybinding : _keybindings) {
@@ -485,11 +523,16 @@ namespace QuickLoot::Input
 			}
 
 			const bool wasSatisfied = keybinding.isModifierSatisfied;
-			const bool isSatisfied = !suppressedInputKeys.contains(keybinding.inputKey) && IsKeyPressed(*keybinding.modifierKey);
+			// Fork: the perk option slots only take over when the target has perk options.
+			const bool hasOptions = !IsPerkOptionAction(keybinding.action) || _perkOptionCount.load() > 0;
+			const bool isSatisfied = hasOptions && !suppressedInputKeys.contains(keybinding.inputKey) && IsKeyPressed(*keybinding.modifierKey);
 			keybinding.isModifierSatisfied = isSatisfied;
 
 			if (isSatisfied) {
 				suppressedInputKeys.insert(keybinding.inputKey);
+				if (IsPerkOptionAction(keybinding.action)) {
+					moreLive = true;
+				}
 			}
 
 			if (isSatisfied != wasSatisfied && keybinding.group == ControlGroup::kButtonBar) {
@@ -512,9 +555,85 @@ namespace QuickLoot::Input
 			}
 		}
 
+		if (moreLive != _moreLive.load()) {
+			SetMoreLive(moreLive);
+			requiresButtonBarUpdate = true;
+		}
+
 		if (requiresButtonBarUpdate) {
 			LootMenuManager::RequestRefresh(RefreshFlags::kButtonBar);
 		}
+	}
+
+	void InputManager::SetPerkOptionCount(int count)
+	{
+		if (_perkOptionCount.exchange(count) == count) {
+			return;
+		}
+		// Input events are handled on the main thread; re-check the More key there, not on the UI thread.
+		SKSE::GetTaskInterface()->AddTask([] { UpdateModifierStates(); });
+	}
+
+	DeviceKey InputManager::GetMoreKey()
+	{
+		const bool isGamepad = !REL::Module::IsVR() && QUsingGamepad(RE::BSInputDeviceManager::GetSingleton());
+		return isGamepad ? _moreKeyGamepad : _moreKeyKeyboard;
+	}
+
+	void InputManager::ReadMoreKeys()
+	{
+		// Same key as Modifier Key Framework, so the More key and MKF's modifier never differ.
+		// Reading a missing file gives the defaults (Left Shift, LB).
+		// (A relative path would make Windows look in its own folder, so make it absolute.)
+		std::error_code ec;
+		const auto path = (std::filesystem::current_path(ec) / "Data/SKSE/Plugins/ModifierKeyFramework.ini").string();
+		const auto keyboard = GetPrivateProfileIntA("Settings", "iModifierKey", KeyboardKey::kLeftShift, path.c_str());
+		const auto gamepad = GetPrivateProfileIntA("Settings", "iModifierKeyGamepad", -1, path.c_str());
+
+		if (keyboard > 0 && keyboard < 256) {
+			_moreKeyKeyboard = DeviceKey::Get(KeyboardKey(keyboard));
+		}
+		if (gamepad > 0) {
+			// MKF uses SKSE's gamepad key numbers (274 = LB); the control map uses XInput masks.
+			const auto mask = SKSE::InputMap::GamepadKeycodeToMask(static_cast<std::uint32_t>(gamepad));
+			if (mask != 0 && mask != RE::ControlMap::kInvalid) {
+				_moreKeyGamepad = DeviceKey::Get(DeviceType::kGamepad, mask);
+			}
+		}
+	}
+
+	void InputManager::SetMoreLive(bool live)
+	{
+		_moreLive = live;
+		logger::debug("More {} ({} perk option(s))", live ? "held: options on the bar" : "released", _perkOptionCount.load());
+
+		if (!live) {
+			for (auto& [mapping, flags] : _liveTaken) {
+				mapping->userEventGroupFlag = static_cast<UEFlag>(flags);
+			}
+			_liveTaken.clear();
+			return;
+		}
+
+		// Take the game's own use of the live slot keys (Jump) away while More is held, the way the
+		// loot menu takes Activate and Ready Weapon while it shows.
+		WalkMappings([&](UserEventMapping& mapping, DeviceType deviceType) {
+			if (mapping.userEventGroupFlag.all(QUICKLOOT_EVENT_GROUP_FLAG) && mapping.userEventGroupFlag.none(UEFlag::kInvalid)) {
+				return;  // already taken by the loot menu
+			}
+			const bool used = std::ranges::any_of(_keybindings, [&](const Keybinding& keybinding) {
+				return keybinding.flags.all(KeybindingFlags::kOnlyWhileLive) && keybinding.isModifierSatisfied &&
+				       keybinding.inputKey.deviceType == deviceType && keybinding.inputKey.keyCode == mapping.inputKey;
+			});
+			if (!used) {
+				return;
+			}
+			_liveTaken.emplace_back(&mapping, mapping.userEventGroupFlag.underlying());
+			if (mapping.userEventGroupFlag.all(UEFlag::kInvalid)) {
+				mapping.userEventGroupFlag = UEFlag::kNone;
+			}
+			mapping.userEventGroupFlag.set(QUICKLOOT_EVENT_GROUP_FLAG);
+		});
 	}
 
 	bool InputManager::HandleGrab(const RE::ButtonEvent* event, const Keybinding* keybinding)

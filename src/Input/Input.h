@@ -104,7 +104,20 @@ namespace QuickLoot::Input
 		kOnRelease = 1 << 2,
 		// The action should be triggered when the button is held for a minimum amount of time.
 		kOnHold = 1 << 3,
+		// Fork: never blocks the game's own use of the key while the loot menu is merely open; the key is
+		// taken from the game only while the binding is live (More held over a target with perk options).
+		kOnlyWhileLive = 1 << 4,
 	};
+
+	inline bool IsPerkOptionAction(QuickLootAction action)
+	{
+		return action >= QuickLootAction::kPerkOption1 && action <= QuickLootAction::kPerkOption3;
+	}
+
+	inline int PerkOptionIndex(QuickLootAction action)
+	{
+		return static_cast<int>(action) - static_cast<int>(QuickLootAction::kPerkOption1);
+	}
 
 	struct Keybinding
 	{

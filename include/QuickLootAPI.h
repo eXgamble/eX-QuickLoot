@@ -34,6 +34,11 @@ namespace QuickLoot::API
 		kScrollDown,
 		kPrevPage,
 		kNextPage,
+
+		// Fork: the target's perk options (Feed, Harvest Blood, ...) while More is held.
+		kPerkOption1,
+		kPerkOption2,
+		kPerkOption3,
 	};
 
 	namespace Events

@@ -361,6 +361,12 @@ namespace QuickLoot
 			ScrollNextPage();
 			break;
 
+		case Input::QuickLootAction::kPerkOption1:
+		case Input::QuickLootAction::kPerkOption2:
+		case Input::QuickLootAction::kPerkOption3:
+			RunPerkOption(Input::PerkOptionIndex(action));
+			break;
+
 		default:
 			break;
 		}
@@ -508,6 +514,23 @@ namespace QuickLoot
 		}
 	}
 
+	void LootMenu::RunPerkOption(int index)
+	{
+		if (index < 0 || index >= std::ssize(_perkOptions)) {
+			return;  // a More slot with no option on it does nothing
+		}
+
+		// Runs the game's own activation and answers its choice popup, so it changes the world:
+		// do it as an SKSE task, then list the options again (Feed may not be offered twice).
+		SKSE::GetTaskInterface()->AddTask([handle = _container, label = _perkOptions[index]] {
+			if (const auto target = handle.get()) {
+				const bool ran = Behaviors::PerkOptions::Run(target.get(), label);
+				logger::info("Perk option '{}' on {:08X}: {}", label, target->GetFormID(), ran ? "ran" : "failed");
+			}
+			LootMenuManager::RequestRefresh(RefreshFlags::kPerkOptions);
+		});
+	}
+
 	void LootMenu::UseItem()
 	{
 		PROFILE_SCOPE
@@ -552,6 +575,10 @@ namespace QuickLoot
 		if (_refreshFlags & RefreshFlags::kInventory) {
 			// Inventory refresh invalidates other components, so it needs to run first.
 			RefreshInventory();
+		}
+
+		if (_refreshFlags & RefreshFlags::kPerkOptions) {
+			RefreshPerkOptions();
 		}
 
 		if (_refreshFlags & RefreshFlags::kButtonBar) {
@@ -646,6 +673,27 @@ namespace QuickLoot
 		QueueRefresh(RefreshFlags::kInfoBar);
 	}
 
+	void LootMenu::RefreshPerkOptions()
+	{
+		std::vector<std::string> labels;
+
+		const auto container = _container.get();
+		if (container && !REL::Module::IsVR()) {
+			for (auto& option : Behaviors::PerkOptions::List(container.get())) {
+				// Two perks can offer the same choice (Feed from Namira's Ring and a mod): one button.
+				if (labels.size() < 3 && std::ranges::find(labels, option.label) == labels.end()) {
+					labels.push_back(std::move(option.label));
+				}
+			}
+		}
+
+		if (labels != _perkOptions) {
+			_perkOptions = std::move(labels);
+			QueueRefresh(RefreshFlags::kButtonBar);
+		}
+		Input::InputManager::SetPerkOptionCount(static_cast<int>(_perkOptions.size()));
+	}
+
 	void LootMenu::RefreshButtonBar()
 	{
 		if (!uiMovie) {
@@ -661,13 +709,29 @@ namespace QuickLoot
 		_buttonBarProvider.ClearElements();
 
 		for (const auto& keybinding : keybindings) {
-			const auto label = keybinding.flags.all(Input::KeybindingFlags::kOnHold) ?
-			                       std::string("$qlie_Hold{") + GetActionDisplayName(keybinding.action, stealing) + "}" :
-			                       GetActionDisplayName(keybinding.action, stealing);
 			const auto index = keybinding.buttonArtOverride != Input::ButtonArtIndex::kNone ?
 			                       keybinding.buttonArtOverride :
 			                       Input::ButtonArt::GetFrameIndexForDeviceKey(keybinding.inputKey);
+
+			// Fork: while More is held, the slots that carry a perk option show it; empty slots are left out.
+			if (Input::IsPerkOptionAction(keybinding.action)) {
+				const auto option = Input::PerkOptionIndex(keybinding.action);
+				if (option < std::ssize(_perkOptions)) {
+					buttons.emplace_back(_perkOptions[option].c_str(), static_cast<uint16_t>(index), false, keybinding.action);
+				}
+				continue;
+			}
+
+			const auto label = keybinding.flags.all(Input::KeybindingFlags::kOnHold) ?
+			                       std::string("$qlie_Hold{") + GetActionDisplayName(keybinding.action, stealing) + "}" :
+			                       GetActionDisplayName(keybinding.action, stealing);
 			buttons.emplace_back(label.c_str(), static_cast<uint16_t>(index), stealing, keybinding.action);
+		}
+
+		// Fork: [LB] More always sits at the end of the bar when the target has perk options.
+		if (!_perkOptions.empty() && !Input::InputManager::IsMoreLive()) {
+			const auto index = Input::ButtonArt::GetFrameIndexForDeviceKey(Input::InputManager::GetMoreKey());
+			buttons.emplace_back("$qlie_More", static_cast<uint16_t>(index), false, API::QuickLootAction::kNone);
 		}
 
 		bool isItemSelected = _selectedIndex >= 0 && _selectedIndex < _inventory.size();

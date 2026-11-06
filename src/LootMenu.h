@@ -21,8 +21,9 @@ namespace QuickLoot
 		kInfoBar = 1 << 2,
 		kWeight = 1 << 3,
 		kTitle = 1 << 4,
+		kPerkOptions = 1 << 5,
 
-		kAll = kInventory | kButtonBar | kInfoBar | kWeight | kTitle,
+		kAll = kInventory | kButtonBar | kInfoBar | kWeight | kTitle | kPerkOptions,
 		kAllButInventory = kAll & ~kInventory
 	};
 
@@ -59,6 +60,9 @@ namespace QuickLoot
 
 		std::vector<std::unique_ptr<Items::QuickLootItemStack>> _inventory;
 
+		// Fork: the target's perk options (labels, at most one per More slot), shown while More is held.
+		std::vector<std::string> _perkOptions;
+
 		CLIK::MovieClip _lootMenu;
 		CLIK::TextField _title;
 		CLIK::TextField _weight;
@@ -88,11 +92,13 @@ namespace QuickLoot
 		void TakeAll();
 		void Transfer();
 		void UseItem();
+		void RunPerkOption(int index);
 
 		void Refresh(RefreshFlags flags = RefreshFlags::kNone);
 		void LoadInventory();
 		void SortInventory();
 		void RefreshInventory(bool updateSelectedIndex = true);
+		void RefreshPerkOptions();
 		void RefreshButtonBar();
 		void RefreshInfoBar();
 		void RefreshWeight();
