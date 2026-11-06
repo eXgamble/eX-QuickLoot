@@ -4,6 +4,8 @@
 #include "UserSettings.h"
 #include "Util/ScriptObject.h"
 
+#include <fstream>
+
 namespace QuickLoot::Config
 {
 	void Papyrus::Install()
@@ -47,17 +49,96 @@ namespace QuickLoot::Config
 		UserSettings::Update();
 	};
 
+	Papyrus::IniValues Papyrus::ReadIni()
+	{
+		IniValues values{};
+
+		std::ifstream ifs(INI_PATH);
+		if (!ifs.is_open()) {
+			logger::info("No {}, using the defaults", INI_PATH);
+			return values;
+		}
+
+		const auto trim = [](std::string_view text) {
+			while (!text.empty() && std::isspace(static_cast<unsigned char>(text.front()))) text.remove_prefix(1);
+			while (!text.empty() && std::isspace(static_cast<unsigned char>(text.back()))) text.remove_suffix(1);
+			return text;
+		};
+
+		std::string line;
+		while (std::getline(ifs, line)) {
+			auto text = trim(line);
+			if (text.empty() || text.front() == ';' || text.front() == '#' || text.front() == '[') {
+				continue;
+			}
+
+			const auto equals = text.find('=');
+			if (equals == std::string_view::npos) {
+				continue;
+			}
+
+			auto value = text.substr(equals + 1);
+			if (const auto comment = value.find_first_of(";#"); comment != std::string_view::npos) {
+				value = value.substr(0, comment);
+			}
+
+			std::string key{ trim(text.substr(0, equals)) };
+			std::ranges::transform(key, key.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+			values[key] = std::string{ trim(value) };
+		}
+
+		logger::info("Read {} values from {}", values.size(), INI_PATH);
+		return values;
+	}
+
+	const std::string* Papyrus::FindIniValue(const IniValues& ini, const std::string& propertyName)
+	{
+		std::string key = propertyName.starts_with("QLIE_") ? propertyName.substr(5) : propertyName;
+		std::ranges::transform(key, key.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+		const auto it = ini.find(key);
+		return it == ini.end() ? nullptr : &it->second;
+	}
+
+	bool Papyrus::ParseIniBool(const std::string& text, bool& out)
+	{
+		std::string lower = text;
+		std::ranges::transform(lower, lower.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+		if (lower == "1" || lower == "true" || lower == "yes" || lower == "on") {
+			out = true;
+			return true;
+		}
+
+		if (lower == "0" || lower == "false" || lower == "no" || lower == "off") {
+			out = false;
+			return true;
+		}
+
+		return false;
+	}
+
 	void Papyrus::UpdateVariables(RE::StaticFunctionTag*)
 	{
-		auto script = Util::ScriptObject::FromForm(MCMQuest, "QuickLootIEMCM");
-		if (!script.IsValid()) {
-			logger::error("Unable to locate MCM script on form");
+		PROFILE_SCOPE;
+
+		// SkyUI's settings menu wins when it's there. Without SkyUI its quest script never binds, so the
+		// settings come from QuickLootIE.ini over the defaults (also what applies before the menu registers).
+		if (auto script = Util::ScriptObject::FromForm(MCMQuest, "QuickLootIEMCM"); script.IsValid()) {
+			logger::info("Settings from the MCM");
+			LoadAll(script);
 			return;
 		}
 
-		PROFILE_SCOPE;
+		logger::info("Settings from {}", INI_PATH);
+		const auto ini = ReadIni();
+		LoadAll(ini);
+	}
 
-#define LoadSettingsVar(name, ...) LoadSetting(script, name, #name, __VA_ARGS__)
+	template <class Source>
+	void Papyrus::LoadAll(Source& source)
+	{
+#define LoadSettingsVar(name, ...) LoadSetting(source, name, #name, __VA_ARGS__)
 
 		// General > Behavior Settings
 		LoadSettingsVar(QLIE_ShowInCombat, true);

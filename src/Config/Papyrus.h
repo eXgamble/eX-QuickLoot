@@ -2,6 +2,10 @@
 
 #include "Util/ScriptObject.h"
 
+#include <cctype>
+#include <charconv>
+#include <unordered_map>
+
 namespace QuickLoot::Config
 {
 	static RE::TESQuest* MCMQuest{ nullptr };
@@ -104,8 +108,63 @@ namespace QuickLoot::Config
 		static std::vector<std::string> GetSortingPreset(RE::StaticFunctionTag*, int presetChoice);
 		static std::vector<std::string> AddPresetsToArray(RE::StaticFunctionTag*, std::vector<std::string> userList, std::vector<std::string> presetList);
 
+		// Fork: the settings without SkyUI. Keys are the MCM property names without "QLIE_"
+		// (ShowInCombat = false), case-insensitive; sections and order don't matter.
+		static constexpr auto INI_PATH = "Data\\SKSE\\Plugins\\QuickLootIE.ini";
+		using IniValues = std::unordered_map<std::string, std::string>;
+		static IniValues ReadIni();
+
 	private:
 		static bool RegisterFunctions(RE::BSScript::IVirtualMachine* vm);
+
+		template <class Source>
+		static void LoadAll(Source& source);
+
+		static const std::string* FindIniValue(const IniValues& ini, const std::string& propertyName);
+		static bool ParseIniBool(const std::string& text, bool& out);
+
+		// Same as the script version below, but from QuickLootIE.ini; a missing or bad value keeps the default.
+		template <typename T>
+		static void LoadSetting(const IniValues& ini, T& variable, const std::string& propertyName, const T& defaultValue)
+		{
+			variable = defaultValue;
+
+			const auto* text = FindIniValue(ini, propertyName);
+			if (!text) {
+				return;
+			}
+
+			bool ok = true;
+
+			if constexpr (std::is_same_v<T, bool>) {
+				ok = ParseIniBool(*text, variable);
+			} else if constexpr (std::is_same_v<T, int> || std::is_same_v<T, float>) {
+				const auto* end = text->data() + text->size();
+				const auto [ptr, ec] = std::from_chars(text->data(), end, variable);
+				ok = ec == std::errc{} && ptr == end;
+			} else if constexpr (std::is_same_v<T, std::vector<std::string>>) {
+				variable.clear();
+				std::string_view rest = *text;
+				while (!rest.empty()) {
+					const auto comma = rest.find(',');
+					auto part = rest.substr(0, comma);
+					rest = comma == std::string_view::npos ? std::string_view{} : rest.substr(comma + 1);
+					while (!part.empty() && std::isspace(static_cast<unsigned char>(part.front()))) part.remove_prefix(1);
+					while (!part.empty() && std::isspace(static_cast<unsigned char>(part.back()))) part.remove_suffix(1);
+					if (!part.empty()) {
+						variable.emplace_back(part);
+					}
+				}
+			}
+
+			if (!ok) {
+				variable = defaultValue;
+				logger::warn("{}: \"{}\" in QuickLootIE.ini isn't a valid value, keeping the default", propertyName, *text);
+				return;
+			}
+
+			logger::trace("{}: {} (ini)", propertyName, *text);
+		}
 
 		static std::vector<std::string> ConvertScriptArrayToVector(ScriptArrayPtr scriptArrayPtr)
 		{

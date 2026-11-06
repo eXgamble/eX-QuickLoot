@@ -7,6 +7,7 @@
 #include "Behaviors/PerkOptions.h"
 #include "Config/Papyrus.h"
 #include "Config/SystemSettings.h"
+#include "Config/UserSettings.h"
 #include "Input/InputManager.h"
 #include "Input/InputObserver.h"
 #include "Integrations/Artifacts.h"
@@ -68,6 +69,10 @@ static void OnSKSEMessage(SKSE::MessagingInterface::Message* msg)
 			QuickLoot::Integrations::Completionist::Init();
 			QuickLoot::Integrations::DismemberingFramework::Init();
 			QuickLoot::Integrations::NPCsNamesDistributor::Init();
+
+			// Fork: settings and key bindings from QuickLootIE.ini right away, so the window works without
+			// SkyUI. When SkyUI's settings menu registers (each load), its values replace these.
+			QuickLoot::Config::UserSettings::Update();
 
 			logger::info("--------------------------------[ kDataLoaded end ]--------------------------------");
 			break;
