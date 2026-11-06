@@ -21,6 +21,8 @@ namespace QuickLoot::Config
 		static int ProfilerFlushInterval() { return _profilerFlushInterval; }
 		static bool EnableMenuCaching() { return _enableMenuCaching; }
 		static bool SuppressActivationPrompt() { return _suppressActivationPrompt; }
+		// Fork, for testing: headless mode with a built-in consumer that writes every view to the log.
+		static bool DebugHeadless() { return _debugHeadless; }
 		static const std::vector<std::string>& GetMenuWhitelist() { return _menuWhitelist; }
 		static const std::set<RE::FormID>& GetContainerBlacklist() { return _containerBlacklist; }
 		static const json& GetSwfConfig() { return _swfConfig; }
@@ -32,6 +34,7 @@ namespace QuickLoot::Config
 		static inline int _profilerFlushInterval = false;
 		static inline bool _enableMenuCaching = true;
 		static inline bool _suppressActivationPrompt = true;
+		static inline bool _debugHeadless = false;
 		static inline std::vector<std::string> _menuWhitelist{};
 		static inline std::set<RE::FormID> _containerBlacklist{};
 		static inline json _swfConfig;

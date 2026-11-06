@@ -57,6 +57,7 @@ namespace QuickLoot::Config
 
 		_enableMenuCaching = config.value("enableMenuCaching", true);
 		_suppressActivationPrompt = config.value("suppressActivationPrompt", true);
+		_debugHeadless = config.value("debugHeadless", false);
 
 		_swfConfig = config["swfConfig"];
 

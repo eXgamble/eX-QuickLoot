@@ -23,6 +23,12 @@ namespace QuickLoot
 
 		static void OnInputAction(Input::QuickLootAction action);
 
+		// Fork: headless mode (no Flash window; an API consumer draws its own). On while any plugin asks.
+		static bool IsHeadless();
+		static void SetHeadless(const std::string& plugin, bool headless);
+		// False when LootMenuIE.swf can't load (no SkyUI): then only headless mode opens anything.
+		static void SetFlashAvailable(bool available) { _flashAvailable = available; }
+
 		// These should only ever be called from the loot menu itself.
 		static void ProcessPendingTasks(LootMenu& menu);
 		static void SaveLastSelectedIndex(const RE::ObjectRefHandle& container, int selectedIndex);
@@ -36,7 +42,16 @@ namespace QuickLoot
 		static inline RE::ObjectRefHandle _lastContainer{};
 		static inline int _lastSelectedIndex = 0;
 
+		static inline std::set<std::string> _headlessPlugins{};
+		static inline std::atomic_bool _headless = false;
+		static inline bool _flashAvailable = true;
+		// The headless window: a LootMenu that never enters the UI, driven by SKSE tasks.
+		// Only touched from those tasks (the game's main thread).
+		static inline std::unique_ptr<LootMenu> _headlessMenu{};
+		static inline std::atomic_bool _pumpQueued = false;
+
 		static void EnsureOpen();
+		static void ScheduleHeadlessPump();
 		static void QueueLootMenuTask(LootMenuTask task);
 	};
 }

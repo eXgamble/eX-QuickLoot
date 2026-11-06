@@ -21,6 +21,7 @@
 #include "Util/ScaleformUtil.h"
 
 #include <SKSE/API.h>
+#include <SKSE/Translation.h>
 
 #include <numbers>
 
@@ -134,6 +135,16 @@ namespace QuickLoot
 			// This is where Show is called.
 			LootMenuManager::ProcessPendingTasks(*this);
 		}
+	}
+
+	LootMenu::LootMenu(Headless) :
+		UniversalMenu(false, false, false)
+	{
+		// No swf and no UI: every Flash call below is skipped, the rest (inventory, sorting, actions,
+		// perk options, API events) works as usual. LootMenuManager runs the queued tasks.
+		_headless = true;
+		menuName = MENU_NAME;
+		logger::info("Created the headless loot window");
 	}
 
 	void LootMenu::InjectUtilsClass()
@@ -280,7 +291,7 @@ namespace QuickLoot
 
 	void LootMenu::Show(const RE::ObjectRefHandle& container, int selectedIndex)
 	{
-		if (!uiMovie) {
+		if (!IsLive()) {
 			return;
 		}
 
@@ -293,7 +304,7 @@ namespace QuickLoot
 
 		if (_container) {
 			// swf reinitialization is only supported at feature level 4 or above
-			if (!_wasInitialized || _swfFeatureLevel >= 4) {
+			if (uiMovie && (!_wasInitialized || _swfFeatureLevel >= 4)) {
 				const RE::GFxValue settings = BuildSettingsObject();
 				_lootMenu.GetInstance().Invoke("init", nullptr, &settings, 1);
 				_wasInitialized = true;
@@ -302,7 +313,9 @@ namespace QuickLoot
 			API::APIServer::DispatchOpenLootMenuEvent(_container);
 		}
 
-		_lootMenu.Visible(container.get() != nullptr);
+		if (uiMovie) {
+			_lootMenu.Visible(container.get() != nullptr);
+		}
 
 		_refreshFlags = RefreshFlags::kNone;
 		RefreshInventory(false);
@@ -321,7 +334,7 @@ namespace QuickLoot
 
 	void LootMenu::OnInputAction(Input::QuickLootAction action)
 	{
-		if (!uiMovie || RE::UI::GetSingleton()->IsMenuOpen(RE::Console::MENU_NAME)) {
+		if (!IsLive() || RE::UI::GetSingleton()->IsMenuOpen(RE::Console::MENU_NAME)) {
 			return;
 		}
 
@@ -389,7 +402,9 @@ namespace QuickLoot
 		}
 
 		_selectedIndex = newIndex;
-		_itemList.SelectedIndex(newIndex);
+		if (uiMovie) {
+			_itemList.SelectedIndex(newIndex);
+		}
 
 		QueueRefresh(RefreshFlags::kInfoBar);
 		QueueRefresh(RefreshFlags::kButtonBar);
@@ -574,7 +589,7 @@ namespace QuickLoot
 	{
 		QueueRefresh(flags);
 
-		if (!uiMovie || !_refreshFlags) {
+		if (!IsLive() || !_refreshFlags) {
 			return;
 		}
 
@@ -606,6 +621,24 @@ namespace QuickLoot
 		}
 
 		_refreshFlags = RefreshFlags::kNone;
+
+		DispatchViewChanged();
+	}
+
+	void LootMenu::DispatchViewChanged()
+	{
+		if (!API::APIServer::HasViewChangedHandlers()) {
+			return;
+		}
+
+		RE::BSTArray<API::ItemStack> items{};
+		items.reserve(static_cast<uint32_t>(_inventory.size()));
+		for (const auto& stack : _inventory) {
+			items.push_back({ stack->GetEntry(), stack->GetDropRef() });
+		}
+
+		const bool open = static_cast<bool>(_container.get());
+		API::APIServer::DispatchViewChangedEvent(_container, open ? _titleText.c_str() : "", items, _selectedIndex, _buttons, open && WouldBeStealing());
 	}
 
 	void LootMenu::LoadInventory()
@@ -652,26 +685,34 @@ namespace QuickLoot
 	{
 		PROFILE_SCOPE;
 
-		_itemListProvider.ClearElements();
+		if (uiMovie) {
+			_itemListProvider.ClearElements();
+		}
 
 		const auto container = _container.get();
 		if (!container) {
-			_itemList.Invalidate();
-			_itemList.SelectedIndex(-1.0);
+			_inventory.clear();
+			_selectedIndex = -1;
+			if (uiMovie) {
+				_itemList.Invalidate();
+				_itemList.SelectedIndex(-1.0);
+			}
 			return;
 		}
 
 		LoadInventory();
 		SortInventory();
 
-		for (auto& item : _inventory) {
-			auto data = item->BuildDataObject(uiMovie.get());
-			API::APIServer::DispatchModifyItemDataEvent(_container, item->GetEntry(), item->GetDropRef(), data);
-			_itemListProvider.PushBack(data);
-		}
+		if (uiMovie) {
+			for (auto& item : _inventory) {
+				auto data = item->BuildDataObject(uiMovie.get());
+				API::APIServer::DispatchModifyItemDataEvent(_container, item->GetEntry(), item->GetDropRef(), data);
+				_itemListProvider.PushBack(data);
+			}
 
-		_itemList.InvalidateData();
-		_lootMenu.GetInstance().Invoke("refresh");
+			_itemList.InvalidateData();
+			_lootMenu.GetInstance().Invoke("refresh");
+		}
 
 		if (updateSelectedIndex) {
 			SetSelectedIndex(_selectedIndex, false);
@@ -715,7 +756,7 @@ namespace QuickLoot
 
 	void LootMenu::RefreshButtonBar()
 	{
-		if (!uiMovie) {
+		if (!IsLive()) {
 			return;
 		}
 
@@ -724,8 +765,6 @@ namespace QuickLoot
 		const auto keybindings = Input::InputManager::GetButtonBarKeybindings();
 		const bool stealing = WouldBeStealing();
 		RE::BSTArray<API::ButtonDefinition2> buttons{};
-
-		_buttonBarProvider.ClearElements();
 
 		for (const auto& keybinding : keybindings) {
 			const auto index = keybinding.buttonArtOverride != Input::ButtonArtIndex::kNone ?
@@ -764,6 +803,21 @@ namespace QuickLoot
 
 		API::APIServer::DispatchModifyButtonBarEvent(_container, entry, dropRef, buttons);
 
+		_buttons = buttons;
+
+		if (!uiMovie) {
+			// Headless: no swf translates "$qlie_More" or "$qlie_Hold{...}", so hand the API finished text.
+			for (auto& button : _buttons) {
+				std::string text;
+				if (SKSE::Translation::Translate(button.label.c_str(), text)) {
+					button.label = text.c_str();
+				}
+			}
+			return;
+		}
+
+		_buttonBarProvider.ClearElements();
+
 		for (auto& button : buttons) {
 			RE::GFxValue obj;
 			uiMovie->CreateObject(&obj);
@@ -780,6 +834,10 @@ namespace QuickLoot
 
 	void LootMenu::RefreshInfoBar()
 	{
+		if (!uiMovie) {
+			return;  // headless: the consumer builds its own info line
+		}
+
 		PROFILE_SCOPE;
 
 		_infoBarProvider.ClearElements();
@@ -800,6 +858,10 @@ namespace QuickLoot
 
 	void LootMenu::RefreshWeight()
 	{
+		if (!uiMovie) {
+			return;
+		}
+
 		PROFILE_SCOPE;
 
 		const auto player = RE::PlayerCharacter::GetSingleton();
@@ -823,8 +885,11 @@ namespace QuickLoot
 				}
 			}
 
-			_title.HTMLText(name);
-			_title.Visible(true);
+			_titleText = name;
+			if (uiMovie) {
+				_title.HTMLText(name);
+				_title.Visible(true);
+			}
 		}
 	}
 

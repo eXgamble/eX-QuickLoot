@@ -40,6 +40,10 @@ namespace QuickLoot
 
 		LootMenu();
 
+		// Fork: a window with no swf, never shown by the UI; LootMenuManager drives it in headless mode.
+		struct Headless {};
+		explicit LootMenu(Headless);
+
 		void Show(const RE::ObjectRefHandle& container, int selectedIndex);
 		void Hide();
 
@@ -50,7 +54,16 @@ namespace QuickLoot
 		static const std::map<std::string, SortRule>& GetAvailableSortRules();
 
 	protected:
+		friend class LootMenuManager;
+
 		static inline RE::GPtr<RE::GFxMovieView> _cachedView{};
+		bool _headless = false;
+		std::string _titleText;
+		RE::BSTArray<API::ButtonDefinition2> _buttons;
+
+		// Live: a swf is loaded, or this is the headless window.
+		[[nodiscard]] bool IsLive() const { return uiMovie || _headless; }
+		void DispatchViewChanged();
 		int _swfFeatureLevel = 0;
 		bool _wasInitialized = false;
 

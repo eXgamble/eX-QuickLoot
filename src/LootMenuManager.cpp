@@ -22,6 +22,10 @@ namespace QuickLoot
 			return;
 		}
 
+		if (!_flashAvailable && !IsHeadless()) {
+			return;  // no window can show: the swf didn't load and nobody draws one for us
+		}
+
 		if (API::APIServer::DispatchOpeningLootMenuEvent(container) != API::HandleResult::kContinue) {
 			logger::info("Opening was canceled by API subscriber");
 			RequestHide();
@@ -73,7 +77,45 @@ namespace QuickLoot
 			_taskQueue.clear();
 		}
 
+		if (IsHeadless()) {
+			// No menu to destroy: the headless window just closes (and tells the API it did).
+			QueueLootMenuTask([](LootMenu& menu) {
+				menu.Hide();
+			});
+			return;
+		}
+
 		RE::UIMessageQueue::GetSingleton()->AddMessage(LootMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kHide, nullptr);
+	}
+
+	bool LootMenuManager::IsHeadless()
+	{
+		return _headless;
+	}
+
+	void LootMenuManager::SetHeadless(const std::string& plugin, bool headless)
+	{
+		bool changed;
+		{
+			std::scoped_lock lock{ _lock };
+			if (headless) {
+				_headlessPlugins.insert(plugin);
+			} else {
+				_headlessPlugins.erase(plugin);
+			}
+			changed = _headless != !_headlessPlugins.empty();
+		}
+
+		logger::info("Plugin {} {} headless mode", plugin, headless ? "asked for" : "let go of");
+
+		if (!changed) {
+			return;
+		}
+
+		// Close whatever is open in the old mode first; the next container looked at opens in the new one.
+		RequestHide();
+		_headless = !_headless;
+		logger::info("Headless mode {}", _headless ? "on: QuickLoot draws no window" : "off");
 	}
 
 	void LootMenuManager::RequestRefresh(RefreshFlags flags)
@@ -108,6 +150,10 @@ namespace QuickLoot
 
 	void LootMenuManager::EnsureOpen()
 	{
+		if (IsHeadless()) {
+			return;  // the headless window is made by its first task
+		}
+
 		if (!RE::UI::GetSingleton()->IsMenuOpen(LootMenu::MENU_NAME)) {
 			RE::UIMessageQueue::GetSingleton()->AddMessage(LootMenu::MENU_NAME, RE::UI_MESSAGE_TYPE::kShow, nullptr);
 		}
@@ -143,7 +189,33 @@ namespace QuickLoot
 			return;
 		}
 
-		std::scoped_lock lock{ _lock };
-		_taskQueue.push_back(std::move(task));
+		{
+			std::scoped_lock lock{ _lock };
+			_taskQueue.push_back(std::move(task));
+		}
+
+		if (IsHeadless()) {
+			ScheduleHeadlessPump();
+		}
+	}
+
+	void LootMenuManager::ScheduleHeadlessPump()
+	{
+		// One SKSE task runs everything queued so far, then refreshes once. Event-driven: nothing
+		// runs while nothing is queued. Tasks queued while it runs schedule the next one.
+		if (_pumpQueued.exchange(true)) {
+			return;
+		}
+
+		SKSE::GetTaskInterface()->AddTask([] {
+			_pumpQueued = false;
+
+			if (!_headlessMenu) {
+				_headlessMenu = std::make_unique<LootMenu>(LootMenu::Headless{});
+			}
+
+			ProcessPendingTasks(*_headlessMenu);
+			_headlessMenu->Refresh();
+		});
 	}
 }

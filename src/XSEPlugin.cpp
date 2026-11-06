@@ -1,6 +1,7 @@
 #include <spdlog/sinks/basic_file_sink.h>
 
 #include "LootMenu.h"
+#include "LootMenuManager.h"
 #include "SanityChecks.h"
 #include "Behaviors/ActivationPrompt.h"
 #include "Behaviors/LockpickActivation.h"
@@ -10,6 +11,7 @@
 #include "Config/UserSettings.h"
 #include "Input/InputManager.h"
 #include "Input/InputObserver.h"
+#include "Integrations/APIServer.h"
 #include "Integrations/Artifacts.h"
 #include "Integrations/BetterThirdPersonSelection.h"
 #include "Integrations/Completionist.h"
@@ -26,6 +28,30 @@
 #include "Observers/SneakStateObserver.h"
 #include "Util/Profiler.h"
 
+// Fork: the debugHeadless consumer, so headless mode can be tested without another mod.
+static void LogView(QuickLoot::API::ViewChangedEvent* e)
+{
+	const auto container = e->container.get();
+	if (!container) {
+		logger::info("[View] closed");
+		return;
+	}
+
+	std::string buttons;
+	for (const auto& button : e->buttons) {
+		buttons += std::format("[{}] {}{}  ", button.buttonArtIndex, button.label.c_str(), button.stealing ? " (red)" : "");
+	}
+
+	std::string selected = "-";
+	if (e->selectedIndex >= 0 && static_cast<uint32_t>(e->selectedIndex) < e->items.size()) {
+		const auto entry = e->items[e->selectedIndex].entry;
+		selected = entry ? entry->GetDisplayName() : "?";
+	}
+
+	logger::info("[View] {:08X} '{}' items {} selected {} ({}){} | {}", container->GetFormID(), e->title, e->items.size(),
+		e->selectedIndex, selected, e->stealing ? " stealing" : "", buttons);
+}
+
 static void OnSKSEMessage(SKSE::MessagingInterface::Message* msg)
 {
 	switch (msg->type) {
@@ -39,12 +65,19 @@ static void OnSKSEMessage(SKSE::MessagingInterface::Message* msg)
 			// Perk options don't need the loot window, so they work even if its swf fails.
 			QuickLoot::Behaviors::PerkOptions::Install();
 
-			if (!QuickLoot::SanityChecks::PerformChecks()) {
+			if (!QuickLoot::SanityChecks::ValidateEsp()) {
 				logger::error("Sanity checks failed. Disabling QuickLootIE.");
 				return;
 			}
 
-			QuickLoot::LootMenu::Register();
+			// Fork: without a working swf (it needs SkyUI) only the Flash window is off. Headless mode,
+			// where another mod draws the window through the API, still works.
+			if (QuickLoot::SanityChecks::ValidateSwf()) {
+				QuickLoot::LootMenu::Register();
+			} else {
+				QuickLoot::LootMenuManager::SetFlashAvailable(false);
+				logger::warn("LootMenuIE.swf can't load: QuickLoot draws no window, only headless mode (API) works");
+			}
 
 			QuickLoot::Config::Papyrus::Install();
 
@@ -73,6 +106,13 @@ static void OnSKSEMessage(SKSE::MessagingInterface::Message* msg)
 			// Fork: settings and key bindings from QuickLootIE.ini right away, so the window works without
 			// SkyUI. When SkyUI's settings menu registers (each load), its values replace these.
 			QuickLoot::Config::UserSettings::Update();
+
+			if (QuickLoot::Config::SystemSettings::DebugHeadless()) {
+				constexpr auto debugPlugin = "QuickLootIE debugHeadless";
+				const auto api = QuickLoot::API::APIServer::GetInterfaceEX1();
+				api->SetHeadless(debugPlugin, true);
+				api->RegisterViewChangedHandler(debugPlugin, LogView);
+			}
 
 			logger::info("--------------------------------[ kDataLoaded end ]--------------------------------");
 			break;

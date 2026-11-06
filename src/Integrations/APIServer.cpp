@@ -16,6 +16,11 @@ namespace QuickLoot::API
 		return APIServer::GetInterfaceV21();
 	}
 
+	extern "C" __declspec(dllexport) void* GetQuickLootInterfaceEX1()
+	{
+		return APIServer::GetInterfaceEX1();
+	}
+
 #pragma region Interface
 
 	void APIServer::InterfaceV20::DisableLootMenu(const char* plugin)
@@ -121,6 +126,16 @@ namespace QuickLoot::API
 	{
 		logger::trace("Plugin {} requested input action {}", plugin, static_cast<int>(action));
 		LootMenuManager::OnInputAction(action);
+	}
+
+	void APIServer::InterfaceEX1::SetHeadless(const char* plugin, bool headless)
+	{
+		LootMenuManager::SetHeadless(plugin, headless);
+	}
+
+	void APIServer::InterfaceEX1::RegisterViewChangedHandler(const char* plugin, ViewChangedHandler handler)
+	{
+		APIServer::RegisterHandler(plugin, handler, APIServer::_viewChangedHandlers);
 	}
 
 #pragma endregion
@@ -276,6 +291,26 @@ namespace QuickLoot::API
 		};
 
 		return DispatchCancelableEvent(_inputActionHandlers, e);
+	}
+
+	bool APIServer::HasViewChangedHandlers()
+	{
+		std::shared_lock guard(_lock);
+		return !_viewChangedHandlers.empty();
+	}
+
+	void APIServer::DispatchViewChangedEvent(RE::ObjectRefHandle container, const char* title, const RE::BSTArray<ItemStack>& items, int32_t selectedIndex, const RE::BSTArray<ButtonDefinition2>& buttons, bool stealing)
+	{
+		ViewChangedEvent e{
+			.container = container,
+			.title = title ? title : "",
+			.items = items,
+			.selectedIndex = selectedIndex,
+			.buttons = buttons,
+			.stealing = stealing,
+		};
+
+		DispatchEvent(_viewChangedHandlers, e);
 	}
 
 #pragma endregion

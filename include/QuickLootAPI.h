@@ -170,6 +170,26 @@ namespace QuickLoot::API
 			HandleResult result = HandleResult::kContinue;
 		};
 
+		// Fork (eX-QuickLoot): what the loot window shows, sent after every change. In headless mode
+		// this is the only picture of the window: draw it yourself from here.
+		// Sent on the game's main thread (an SKSE task) in headless mode, on the UI thread otherwise.
+		// The pointers and arrays are only valid during the call.
+		struct ViewChangedEvent
+		{
+			// Empty when the window just closed.
+			RE::ObjectRefHandle container;
+			// The container's display name (empty when closed).
+			const char* title;
+			// The items in display order (sorted as the window sorts them).
+			const RE::BSTArray<ItemStack>& items;
+			// Index into items, -1 when there are none.
+			int32_t selectedIndex;
+			// The button bar exactly as the window would draw it, after ModifyButtonBar handlers.
+			const RE::BSTArray<ButtonDefinition2>& buttons;
+			// Taking from this container is stealing.
+			bool stealing;
+		};
+
 		template <typename TEvent>
 		using EventHandler = void (*)(TEvent* e);
 
@@ -186,6 +206,7 @@ namespace QuickLoot::API
 		using ModifyButtonBarHandler = EventHandler<ModifyButtonBarEvent>;
 		using ModifyItemDataHandler = EventHandler<ModifyItemDataEvent>;
 		using InputActionHandler = EventHandler<InputActionEvent>;
+		using ViewChangedHandler = EventHandler<ViewChangedEvent>;
 	}
 
 	using namespace Events;
@@ -233,8 +254,34 @@ namespace QuickLoot::API
 			_plugin = plugin;
 			_interfaceV20 = LoadInterface<InterfaceV20>("GetQuickLootInterfaceV20");
 			_interfaceV21 = LoadInterface<InterfaceV21>("GetQuickLootInterfaceV21");
+			_interfaceEX1 = LoadInterface<InterfaceEX1>("GetQuickLootInterfaceEX1");
 
 			return IsReady(minVersion);
+		}
+
+		// Fork (eX-QuickLoot): true when the fork's own additions (headless mode) are there.
+		// Upstream QuickLoot IE doesn't have them.
+		static bool IsForkReady()
+		{
+			return _interfaceEX1;
+		}
+
+		// Fork: while any plugin asks for it, QuickLoot draws no window of its own (and needs no swf,
+		// so no SkyUI). Everything else keeps working: which container is looked at, the keys, taking
+		// items, perk options, and every event. Draw the window yourself from ViewChangedEvent, and
+		// scroll or take through PerformInputAction. Best set once, at kPostLoad or kDataLoaded.
+		static void SetHeadless(bool headless)
+		{
+			if (_interfaceEX1) {
+				_interfaceEX1->SetHeadless(_plugin, headless);
+			}
+		}
+
+		static void RegisterViewChangedHandler(ViewChangedHandler handler)
+		{
+			if (_interfaceEX1) {
+				_interfaceEX1->RegisterViewChangedHandler(_plugin, handler);
+			}
 		}
 
 		static bool IsReady(ApiVersion minVersion = ApiVersion::kLatest)
@@ -428,8 +475,16 @@ namespace QuickLoot::API
 			virtual void PerformInputAction(const char* plugin, QuickLootAction action);
 		};
 
+		// Fork (eX-QuickLoot) additions, kept apart from upstream's version numbers.
+		struct InterfaceEX1 : public InterfaceV21
+		{
+			virtual void SetHeadless(const char* plugin, bool headless);
+			virtual void RegisterViewChangedHandler(const char* plugin, ViewChangedHandler handler);
+		};
+
 		static inline const char* _plugin;
 		static inline InterfaceV20* _interfaceV20;
 		static inline InterfaceV21* _interfaceV21;
+		static inline InterfaceEX1* _interfaceEX1;
 	};
 }

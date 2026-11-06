@@ -7,6 +7,9 @@
 	"profilerFlushInterval": 1000,
 	"enableMenuCaching": true,
 	"suppressActivationPrompt": true,
+	// For mod authors testing headless mode: QuickLoot draws no window and writes
+	// what it would show to QuickLootIE.log instead.
+	"debugHeadless": false,
 	// Use this to whitelist menus so they won't block
 	// the loot menu from opening. The list must contain
 	// the internal menu names as they appear in the log,
