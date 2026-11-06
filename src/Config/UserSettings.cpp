@@ -55,18 +55,12 @@ namespace QuickLoot::Config
 
 	std::vector<Input::Keybinding> UserSettings::GetKeybindings()
 	{
+		// Fork: the button bar (Take, Transfer) is fixed in InputManager::ReloadKeybindings, so only
+		// the enable/disable keys come from the settings.
 		std::vector keybindings{
-			BuildKeybinding(Input::ControlGroup::kButtonBar, Input::QuickLootAction::kUse, QLIE_KeybindingUse, QLIE_KeybindingUseModifier),
-			BuildKeybinding(Input::ControlGroup::kButtonBar, Input::QuickLootAction::kTake, QLIE_KeybindingTake, QLIE_KeybindingTakeModifier),
-			BuildKeybinding(Input::ControlGroup::kButtonBar, Input::QuickLootAction::kTakeAll, QLIE_KeybindingTakeAll, QLIE_KeybindingTakeAllModifier),
-			BuildKeybinding(Input::ControlGroup::kButtonBar, Input::QuickLootAction::kTransfer, QLIE_KeybindingTransfer, QLIE_KeybindingTransferModifier),
 			BuildKeybinding(Input::ControlGroup::kEnableState, Input::QuickLootAction::kDisable, QLIE_KeybindingDisable, QLIE_KeybindingDisableModifier),
 			BuildKeybinding(Input::ControlGroup::kEnableState, Input::QuickLootAction::kEnable, QLIE_KeybindingEnable, QLIE_KeybindingEnableModifier),
 
-			BuildKeybinding(Input::ControlGroup::kButtonBar, Input::QuickLootAction::kUse, QLIE_KeybindingUseGamepad, QLIE_KeybindingUseGamepadModifier),
-			BuildKeybinding(Input::ControlGroup::kButtonBar, Input::QuickLootAction::kTake, QLIE_KeybindingTakeGamepad, QLIE_KeybindingTakeGamepadModifier),
-			BuildKeybinding(Input::ControlGroup::kButtonBar, Input::QuickLootAction::kTakeAll, QLIE_KeybindingTakeAllGamepad, QLIE_KeybindingTakeAllGamepadModifier),
-			BuildKeybinding(Input::ControlGroup::kButtonBar, Input::QuickLootAction::kTransfer, QLIE_KeybindingTransferGamepad, QLIE_KeybindingTransferGamepadModifier),
 			BuildKeybinding(Input::ControlGroup::kEnableState, Input::QuickLootAction::kDisable, QLIE_KeybindingDisableGamepad, QLIE_KeybindingDisableGamepadModifier),
 			BuildKeybinding(Input::ControlGroup::kEnableState, Input::QuickLootAction::kEnable, QLIE_KeybindingEnableGamepad, QLIE_KeybindingEnableGamepadModifier),
 		};

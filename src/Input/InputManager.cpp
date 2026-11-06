@@ -303,6 +303,22 @@ namespace QuickLoot::Input
 		constexpr auto flagsNone = KeybindingFlags::kNone;
 		constexpr auto flagsRetrigger = KeybindingFlags::kRetrigger;
 
+		// Fork: the button bar is fixed and not a setting. Take sits on the game's Activate key and
+		// Transfer on its Ready Weapon key (E / R, pad A / X by default), so both follow the
+		// player's own control map. Take All and Use are gone from the bar.
+		if (!REL::Module::IsVR()) {
+			const auto controlMap = RE::ControlMap::GetSingleton();
+			const auto mapped = [controlMap](std::string_view eventID, DeviceType device, uint32_t fallback) {
+				const auto key = controlMap ? controlMap->GetMappedKey(eventID, device) : static_cast<uint32_t>(RE::ControlMap::kInvalid);
+				return DeviceKey::Get(device, key == 0 || key == RE::ControlMap::kInvalid ? fallback : key);
+			};
+
+			_keybindings.emplace_back(ControlGroup::kButtonBar, mapped("Activate", DeviceType::kKeyboard, KeyboardKey::kE), modNone, QuickLootAction::kTake, flagsNone);
+			_keybindings.emplace_back(ControlGroup::kButtonBar, mapped("Ready Weapon", DeviceType::kKeyboard, KeyboardKey::kR), modNone, QuickLootAction::kTransfer, flagsNone);
+			_keybindings.emplace_back(ControlGroup::kButtonBar, mapped("Activate", DeviceType::kGamepad, GamepadInput::kA), modNone, QuickLootAction::kTake, flagsNone);
+			_keybindings.emplace_back(ControlGroup::kButtonBar, mapped("Ready Weapon", DeviceType::kGamepad, GamepadInput::kX), modNone, QuickLootAction::kTransfer, flagsNone);
+		}
+
 		// Hardcoded keybindings for scrolling
 		_keybindings.emplace_back(ControlGroup::kMouseWheel, DeviceKey::Get(MouseButton::kWheelUp), modNone, QuickLootAction::kScrollUp, flagsNone);
 		_keybindings.emplace_back(ControlGroup::kMouseWheel, DeviceKey::Get(MouseButton::kWheelDown), modNone, QuickLootAction::kScrollDown, flagsNone);
@@ -320,7 +336,6 @@ namespace QuickLoot::Input
 			constexpr auto modVRTrigger = DeviceKey::Get(vrDevice, VRInput::kTrigger);
 			_keybindings.emplace_back(ControlGroup::kButtonBar, DeviceKey::Get(vrDevice, VRInput::kXA), modVRTrigger, QuickLootAction::kUse, flagsNone, ButtonArtIndex::kOculusA);
 			_keybindings.emplace_back(ControlGroup::kButtonBar, DeviceKey::Get(vrDevice, VRInput::kXA), modNone, QuickLootAction::kTake, flagsNone, ButtonArtIndex::kOculusA);
-			_keybindings.emplace_back(ControlGroup::kButtonBar, DeviceKey::Get(vrDevice, VRInput::kBY), modNone, QuickLootAction::kTakeAll, flagsNone, ButtonArtIndex::kOculusB);
 			_keybindings.emplace_back(ControlGroup::kButtonBar, DeviceKey::Get(vrDevice, VRInput::kXA), modNone, QuickLootAction::kTransfer, KeybindingFlags::kOnHold, ButtonArtIndex::kOculusAHold);
 			_keybindings.emplace_back(ControlGroup::kButtonBar, DeviceKey::Get(vrDevice, VRInput::kXA), modVRTrigger, QuickLootAction::kTransfer, KeybindingFlags::kOnHold, ButtonArtIndex::kOculusAHold);
 			_keybindings.emplace_back(ControlGroup::kVrScroll, DeviceKey::Get(vrDevice, VRInput::kMainThumbStickUp), modNone, QuickLootAction::kScrollUp, flagsRetrigger);

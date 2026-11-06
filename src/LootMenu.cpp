@@ -2,6 +2,7 @@
 
 #include "Behaviors/ActivationPrompt.h"
 #include "Behaviors/ContainerAnimator.h"
+#include "Behaviors/PerkOptions.h"
 #include "CLIK/Array.h"
 #include "CLIK/GFx/Controls/ButtonBar.h"
 #include "CLIK/GFx/Controls/ScrollingList.h"
@@ -496,6 +497,13 @@ namespace QuickLoot
 			auto device = player->GetVRPlayerRuntimeData()->isRightHandMainHand ? RE::VR_DEVICE::kRightController : RE::VR_DEVICE::kLeftController;
 			player->ActivatePickRefVR(device);
 		} else {
+			// Fork: with a perk option on the target (Namira's Ring "Feed", ...) the game asks first.
+			// Answer that popup with Search, so Transfer always opens the container and no popup shows.
+			const auto container = _container.get();
+			if (container && !Behaviors::PerkOptions::List(container.get()).empty()) {
+				Behaviors::PerkOptions::Search(container.get());
+				return;
+			}
 			player->ActivatePickRef();
 		}
 	}

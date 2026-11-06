@@ -82,11 +82,12 @@
 
 ### Keybindings
 
+The button bar is fixed: **Take** is the game's Activate key and **Search** (open the full
+container) is its Ready Weapon key, so both follow your control map (`E` / `R`, gamepad `A` / `X`
+by default). There is no Take All button.
+
 | Name                            | Type   | Default |
 |---------------------------------|--------|---------|
-| Take                            | `key`  | `E`     |
-| Take All                        | `key`  | `R`     |
-| Search                          | `key`  | `Q`     |
 | Disable loot menu               | `key`  | unbound |
 | Enable loot menu                | `key`  | unbound |
 
