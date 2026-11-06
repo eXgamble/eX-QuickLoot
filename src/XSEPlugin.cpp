@@ -4,6 +4,7 @@
 #include "SanityChecks.h"
 #include "Behaviors/ActivationPrompt.h"
 #include "Behaviors/LockpickActivation.h"
+#include "Behaviors/PerkOptions.h"
 #include "Config/Papyrus.h"
 #include "Config/SystemSettings.h"
 #include "Input/InputManager.h"
@@ -33,6 +34,9 @@ static void OnSKSEMessage(SKSE::MessagingInterface::Message* msg)
 			logger::info("--------------------------------[ kDataLoaded start ]--------------------------------");
 
 			QuickLoot::Config::SystemSettings::Update();
+
+			// Perk options don't need the loot window, so they work even if its swf fails.
+			QuickLoot::Behaviors::PerkOptions::Install();
 
 			if (!QuickLoot::SanityChecks::PerformChecks()) {
 				logger::error("Sanity checks failed. Disabling QuickLootIE.");

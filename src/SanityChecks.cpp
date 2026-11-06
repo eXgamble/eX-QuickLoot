@@ -3,13 +3,11 @@
 #include "LootMenu.h"
 #include "Util/FormUtil.h"
 
+// No popups: a Windows message box here blocks the game's main thread during startup.
+// The loot window just stays off and the reason goes to the log.
 void ShowFatalError(const char* message)
 {
-	const int result = WIN32::MessageBoxA(nullptr, message, "QuickLoot IE", MB_YESNO);
-	if (result == IDYES) {
-		logger::info("Exiting game...");
-		std::_Exit(EXIT_FAILURE);
-	}
+	logger::error("{}", message);
 }
 
 bool QuickLoot::SanityChecks::PerformChecks()
