@@ -3,6 +3,7 @@
 #include "Behaviors/ActivationPrompt.h"
 #include "Behaviors/ContainerAnimator.h"
 #include "Behaviors/PerkOptions.h"
+#include "Integrations/ModifierKeyFramework.h"
 #include "CLIK/Array.h"
 #include "CLIK/GFx/Controls/ButtonBar.h"
 #include "CLIK/GFx/Controls/ScrollingList.h"
@@ -522,10 +523,17 @@ namespace QuickLoot
 
 		// Runs the game's own activation and answers its choice popup, so it changes the world:
 		// do it as an SKSE task, then list the options again (Feed may not be offered twice).
-		SKSE::GetTaskInterface()->AddTask([handle = _container, label = _perkOptions[index]] {
+		SKSE::GetTaskInterface()->AddTask([handle = _container, option = _perkOptions[index]] {
 			if (const auto target = handle.get()) {
-				const bool ran = Behaviors::PerkOptions::Run(target.get(), label);
-				logger::info("Perk option '{}' on {:08X}: {}", label, target->GetFormID(), ran ? "ran" : "failed");
+				if (option.mkfSlot > 0) {
+					// MKF runs its own action, exactly as the player's press would without the loot window.
+					const auto mkf = Integrations::ModifierKeyFramework::Get();
+					const bool ran = mkf && mkf->runModifierAction(target->GetFormID(), option.mkfSlot);
+					logger::info("MKF action '{}' (slot {}) on {:08X}: {}", option.label, option.mkfSlot, target->GetFormID(), ran ? "ran" : "failed");
+				} else {
+					const bool ran = Behaviors::PerkOptions::Run(target.get(), option.label);
+					logger::info("Perk option '{}' on {:08X}: {}", option.label, target->GetFormID(), ran ? "ran" : "failed");
+				}
 			}
 			LootMenuManager::RequestRefresh(RefreshFlags::kPerkOptions);
 		});
@@ -675,20 +683,31 @@ namespace QuickLoot
 
 	void LootMenu::RefreshPerkOptions()
 	{
-		std::vector<std::string> labels;
+		std::vector<MoreOption> options;
 
 		const auto container = _container.get();
 		if (container && !REL::Module::IsVR()) {
+			// MKF's modifier actions keep MKF's own slots (Activate, then its two slot controls), the same
+			// buttons they have on any NPC or object; the perk options fill the slots after them.
+			if (const auto mkf = Integrations::ModifierKeyFramework::Get()) {
+				MKF::ModifierActions actions{};
+				if (mkf->getModifierActions(container->GetFormID(), &actions)) {
+					for (std::uint32_t slot = 0; slot < actions.count && options.size() < 3; ++slot) {
+						options.push_back({ actions.slots[slot].label, actions.slots[slot].crime, slot + 1 });
+					}
+				}
+			}
 			for (auto& option : Behaviors::PerkOptions::List(container.get())) {
 				// Two perks can offer the same choice (Feed from Namira's Ring and a mod): one button.
-				if (labels.size() < 3 && std::ranges::find(labels, option.label) == labels.end()) {
-					labels.push_back(std::move(option.label));
+				const bool shown = std::ranges::any_of(options, [&](const MoreOption& o) { return o.label == option.label; });
+				if (options.size() < 3 && !shown) {
+					options.push_back({ std::move(option.label), false, 0 });
 				}
 			}
 		}
 
-		if (labels != _perkOptions) {
-			_perkOptions = std::move(labels);
+		if (options != _perkOptions) {
+			_perkOptions = std::move(options);
 			QueueRefresh(RefreshFlags::kButtonBar);
 		}
 		Input::InputManager::SetPerkOptionCount(static_cast<int>(_perkOptions.size()));
@@ -717,7 +736,8 @@ namespace QuickLoot
 			if (Input::IsPerkOptionAction(keybinding.action)) {
 				const auto option = Input::PerkOptionIndex(keybinding.action);
 				if (option < std::ssize(_perkOptions)) {
-					buttons.emplace_back(_perkOptions[option].c_str(), static_cast<uint16_t>(index), false, keybinding.action);
+					const auto& more = _perkOptions[option];
+					buttons.emplace_back(more.label.c_str(), static_cast<uint16_t>(index), more.crime, keybinding.action);
 				}
 				continue;
 			}

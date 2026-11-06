@@ -38,6 +38,9 @@ namespace QuickLoot::Input
 		static inline std::atomic<bool> _moreLive{ false };
 		static inline DeviceKey _moreKeyKeyboard = DeviceKey::Get(KeyboardKey::kLeftShift);
 		static inline DeviceKey _moreKeyGamepad = DeviceKey::Get(GamepadInput::kLeftShoulder);
+		// The game controls of More slots 2 and 3: MKF's own (sSlot2Control / sSlot3Control in its ini).
+		static inline std::string _slot2Control = "Ready Weapon";
+		static inline std::string _slot3Control = "Jump";
 		// Game mappings taken while More is live (Jump on a slot key), with their old group flags.
 		static inline std::vector<std::pair<UserEventMapping*, std::uint32_t>> _liveTaken{};
 

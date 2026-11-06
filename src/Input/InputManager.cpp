@@ -344,11 +344,12 @@ namespace QuickLoot::Input
 			const std::optional<DeviceKey> moreKb = _moreKeyKeyboard;
 			const std::optional<DeviceKey> morePad = _moreKeyGamepad;
 			_keybindings.emplace_back(ControlGroup::kButtonBar, mapped("Activate", DeviceType::kKeyboard, KeyboardKey::kE), moreKb, QuickLootAction::kPerkOption1, live);
-			_keybindings.emplace_back(ControlGroup::kButtonBar, mapped("Ready Weapon", DeviceType::kKeyboard, KeyboardKey::kR), moreKb, QuickLootAction::kPerkOption2, live);
-			_keybindings.emplace_back(ControlGroup::kButtonBar, mapped("Jump", DeviceType::kKeyboard, KeyboardKey::kSpacebar), moreKb, QuickLootAction::kPerkOption3, live);
+			// Slots 2 and 3 use MKF's slot controls, so an MKF action keeps its button inside the loot window.
+			_keybindings.emplace_back(ControlGroup::kButtonBar, mapped(_slot2Control, DeviceType::kKeyboard, KeyboardKey::kR), moreKb, QuickLootAction::kPerkOption2, live);
+			_keybindings.emplace_back(ControlGroup::kButtonBar, mapped(_slot3Control, DeviceType::kKeyboard, KeyboardKey::kSpacebar), moreKb, QuickLootAction::kPerkOption3, live);
 			_keybindings.emplace_back(ControlGroup::kButtonBar, mapped("Activate", DeviceType::kGamepad, GamepadInput::kA), morePad, QuickLootAction::kPerkOption1, live);
-			_keybindings.emplace_back(ControlGroup::kButtonBar, mapped("Ready Weapon", DeviceType::kGamepad, GamepadInput::kX), morePad, QuickLootAction::kPerkOption2, live);
-			_keybindings.emplace_back(ControlGroup::kButtonBar, mapped("Jump", DeviceType::kGamepad, GamepadInput::kY), morePad, QuickLootAction::kPerkOption3, live);
+			_keybindings.emplace_back(ControlGroup::kButtonBar, mapped(_slot2Control, DeviceType::kGamepad, GamepadInput::kX), morePad, QuickLootAction::kPerkOption2, live);
+			_keybindings.emplace_back(ControlGroup::kButtonBar, mapped(_slot3Control, DeviceType::kGamepad, GamepadInput::kY), morePad, QuickLootAction::kPerkOption3, live);
 		}
 
 		// Hardcoded keybindings for scrolling
@@ -592,6 +593,16 @@ namespace QuickLoot::Input
 
 		if (keyboard > 0 && keyboard < 256) {
 			_moreKeyKeyboard = DeviceKey::Get(KeyboardKey(keyboard));
+		}
+
+		// MKF's controls for its second and third modifier action (MKF itself turns a duplicate slot 3 into the other default).
+		char control[64]{};
+		GetPrivateProfileStringA("Settings", "sSlot2Control", "Ready Weapon", control, sizeof(control), path.c_str());
+		_slot2Control = control;
+		GetPrivateProfileStringA("Settings", "sSlot3Control", "Jump", control, sizeof(control), path.c_str());
+		_slot3Control = control;
+		if (_slot3Control == _slot2Control) {
+			_slot3Control = _slot2Control == "Jump" ? "Ready Weapon" : "Jump";
 		}
 		if (gamepad > 0) {
 			// MKF uses SKSE's gamepad key numbers (274 = LB); the control map uses XInput masks.

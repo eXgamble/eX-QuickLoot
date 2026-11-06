@@ -60,8 +60,17 @@ namespace QuickLoot
 
 		std::vector<std::unique_ptr<Items::QuickLootItemStack>> _inventory;
 
-		// Fork: the target's perk options (labels, at most one per More slot), shown while More is held.
-		std::vector<std::string> _perkOptions;
+		// Fork: what the More slots carry while More is held (at most one per slot): MKF's modifier
+		// actions on their own slots first, then the target's perk options.
+		struct MoreOption
+		{
+			std::string label;
+			bool crime = false;
+			std::uint32_t mkfSlot = 0;  // 1-3: MKF's modifier action; 0: a perk option, run by label
+
+			bool operator==(const MoreOption&) const = default;
+		};
+		std::vector<MoreOption> _perkOptions;
 
 		CLIK::MovieClip _lootMenu;
 		CLIK::TextField _title;
