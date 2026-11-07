@@ -638,7 +638,26 @@ namespace QuickLoot
 		}
 
 		const bool open = static_cast<bool>(_container.get());
-		API::APIServer::DispatchViewChangedEvent(_container, open ? _titleText.c_str() : "", items, _selectedIndex, _buttons, open && WouldBeStealing());
+
+		// EX2: More's options with the keys that run them while it's held, so a window of its own can show them
+		// before More is held.
+		RE::BSTArray<API::ButtonDefinition2> moreOptions{};
+		if (open && !_perkOptions.empty() && API::APIServer::HasViewChanged2Handlers()) {
+			for (const auto& keybinding : Input::InputManager::GetMoreSlotKeybindings()) {
+				const auto option = Input::PerkOptionIndex(keybinding.action);
+				if (option < 0 || option >= std::ssize(_perkOptions)) {
+					continue;
+				}
+				const auto index = keybinding.buttonArtOverride != Input::ButtonArtIndex::kNone ?
+				                       keybinding.buttonArtOverride :
+				                       Input::ButtonArt::GetFrameIndexForDeviceKey(keybinding.inputKey);
+				const auto& more = _perkOptions[option];
+				moreOptions.emplace_back(more.label.c_str(), static_cast<uint16_t>(index), more.crime, keybinding.action);
+			}
+		}
+		const bool moreHeld = !moreOptions.empty() && Input::InputManager::IsMoreLive();
+
+		API::APIServer::DispatchViewChangedEvent(_container, open ? _titleText.c_str() : "", items, _selectedIndex, _buttons, open && WouldBeStealing(), moreOptions, moreHeld);
 	}
 
 	void LootMenu::LoadInventory()

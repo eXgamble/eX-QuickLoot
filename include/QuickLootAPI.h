@@ -190,6 +190,19 @@ namespace QuickLoot::API
 			bool stealing;
 		};
 
+		// Fork (eX-QuickLoot, EX2): the same picture plus what More holds, so a window of your own can show
+		// the options before More is held and fade between them and the buttons. Sent with ViewChangedEvent.
+		struct ViewChangedEvent2
+		{
+			const ViewChangedEvent& view;
+			// What holding More puts on the bar, up to three: Modifier Key Framework's actions for the target
+			// first, then its perk options (Feed, Harvest Blood, ...), each with the key that runs it while
+			// More is held on the device in use. Empty when the target has none (then there's no More button).
+			const RE::BSTArray<ButtonDefinition2>& moreOptions;
+			// More is held right now: view.buttons are the options instead of Take, Transfer and More.
+			bool moreHeld;
+		};
+
 		template <typename TEvent>
 		using EventHandler = void (*)(TEvent* e);
 
@@ -207,6 +220,7 @@ namespace QuickLoot::API
 		using ModifyItemDataHandler = EventHandler<ModifyItemDataEvent>;
 		using InputActionHandler = EventHandler<InputActionEvent>;
 		using ViewChangedHandler = EventHandler<ViewChangedEvent>;
+		using ViewChanged2Handler = EventHandler<ViewChangedEvent2>;
 	}
 
 	using namespace Events;
@@ -255,8 +269,23 @@ namespace QuickLoot::API
 			_interfaceV20 = LoadInterface<InterfaceV20>("GetQuickLootInterfaceV20");
 			_interfaceV21 = LoadInterface<InterfaceV21>("GetQuickLootInterfaceV21");
 			_interfaceEX1 = LoadInterface<InterfaceEX1>("GetQuickLootInterfaceEX1");
+			_interfaceEX2 = LoadInterface<InterfaceEX2>("GetQuickLootInterfaceEX2");
 
 			return IsReady(minVersion);
+		}
+
+		// Fork: true when the fork is new enough to send ViewChangedEvent2 (More's options and held state).
+		static bool HasViewChanged2()
+		{
+			return _interfaceEX2;
+		}
+
+		// Fork (EX2): sent right after each ViewChangedEvent.
+		static void RegisterViewChanged2Handler(ViewChanged2Handler handler)
+		{
+			if (_interfaceEX2) {
+				_interfaceEX2->RegisterViewChanged2Handler(_plugin, handler);
+			}
 		}
 
 		// Fork (eX-QuickLoot): true when the fork's own additions (headless mode) are there.
@@ -482,9 +511,15 @@ namespace QuickLoot::API
 			virtual void RegisterViewChangedHandler(const char* plugin, ViewChangedHandler handler);
 		};
 
+		struct InterfaceEX2 : public InterfaceEX1
+		{
+			virtual void RegisterViewChanged2Handler(const char* plugin, ViewChanged2Handler handler);
+		};
+
 		static inline const char* _plugin;
 		static inline InterfaceV20* _interfaceV20;
 		static inline InterfaceV21* _interfaceV21;
 		static inline InterfaceEX1* _interfaceEX1;
+		static inline InterfaceEX2* _interfaceEX2;
 	};
 }

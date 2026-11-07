@@ -21,6 +21,11 @@ namespace QuickLoot::API
 		return APIServer::GetInterfaceEX1();
 	}
 
+	extern "C" __declspec(dllexport) void* GetQuickLootInterfaceEX2()
+	{
+		return APIServer::GetInterfaceEX2();
+	}
+
 #pragma region Interface
 
 	void APIServer::InterfaceV20::DisableLootMenu(const char* plugin)
@@ -136,6 +141,11 @@ namespace QuickLoot::API
 	void APIServer::InterfaceEX1::RegisterViewChangedHandler(const char* plugin, ViewChangedHandler handler)
 	{
 		APIServer::RegisterHandler(plugin, handler, APIServer::_viewChangedHandlers);
+	}
+
+	void APIServer::InterfaceEX2::RegisterViewChanged2Handler(const char* plugin, ViewChanged2Handler handler)
+	{
+		APIServer::RegisterHandler(plugin, handler, APIServer::_viewChanged2Handlers);
 	}
 
 #pragma endregion
@@ -296,10 +306,16 @@ namespace QuickLoot::API
 	bool APIServer::HasViewChangedHandlers()
 	{
 		std::shared_lock guard(_lock);
-		return !_viewChangedHandlers.empty();
+		return !_viewChangedHandlers.empty() || !_viewChanged2Handlers.empty();
 	}
 
-	void APIServer::DispatchViewChangedEvent(RE::ObjectRefHandle container, const char* title, const RE::BSTArray<ItemStack>& items, int32_t selectedIndex, const RE::BSTArray<ButtonDefinition2>& buttons, bool stealing)
+	bool APIServer::HasViewChanged2Handlers()
+	{
+		std::shared_lock guard(_lock);
+		return !_viewChanged2Handlers.empty();
+	}
+
+	void APIServer::DispatchViewChangedEvent(RE::ObjectRefHandle container, const char* title, const RE::BSTArray<ItemStack>& items, int32_t selectedIndex, const RE::BSTArray<ButtonDefinition2>& buttons, bool stealing, const RE::BSTArray<ButtonDefinition2>& moreOptions, bool moreHeld)
 	{
 		ViewChangedEvent e{
 			.container = container,
@@ -311,6 +327,14 @@ namespace QuickLoot::API
 		};
 
 		DispatchEvent(_viewChangedHandlers, e);
+
+		ViewChangedEvent2 e2{
+			.view = e,
+			.moreOptions = moreOptions,
+			.moreHeld = moreHeld,
+		};
+
+		DispatchEvent(_viewChanged2Handlers, e2);
 	}
 
 #pragma endregion

@@ -26,6 +26,8 @@ namespace QuickLoot::Input
 		static void HandleThumbstickEvent(const RE::ThumbstickEvent* event);
 
 		static std::vector<Keybinding> GetButtonBarKeybindings();
+		// Fork: the More slots' keybindings on the device in use, whether More is held or not.
+		static std::vector<Keybinding> GetMoreSlotKeybindings();
 
 		// Fork: the More key (MKF's modifier key: Left Shift / LB unless MKF's ini says otherwise).
 		// Held over a target with perk options, the bar swaps to those options on the slot keys.

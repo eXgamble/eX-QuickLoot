@@ -314,6 +314,24 @@ namespace QuickLoot::Input
 		return filtered;
 	}
 
+	std::vector<Keybinding> InputManager::GetMoreSlotKeybindings()
+	{
+		std::vector<Keybinding> filtered{};
+
+		if (REL::Module::IsVR()) {
+			return filtered;
+		}
+		const bool isGamepad = QUsingGamepad(RE::BSInputDeviceManager::GetSingleton());
+
+		std::ranges::copy_if(_keybindings, std::back_inserter(filtered), [=](const Keybinding& keybinding) {
+			return keybinding.group == ControlGroup::kButtonBar &&
+			       IsPerkOptionAction(keybinding.action) &&
+			       (keybinding.inputKey.deviceType == DeviceType::kGamepad) == isGamepad;
+		});
+
+		return filtered;
+	}
+
 	void InputManager::ReloadKeybindings()
 	{
 		_keybindings = Config::UserSettings::GetKeybindings();
