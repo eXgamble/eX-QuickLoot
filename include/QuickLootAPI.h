@@ -201,6 +201,11 @@ namespace QuickLoot::API
 			const RE::BSTArray<ButtonDefinition2>& moreOptions;
 			// More is held right now: view.buttons are the options instead of Take, Transfer and More.
 			bool moreHeld;
+			// The container is locked: -1 when it isn't, else its RE::LOCK_LEVEL (0 Novice ... 4 Master,
+			// 5 Requires Key). Only sent for a locked one after SetShowLockedAndEmpty(true): then items is
+			// empty (what's inside stays hidden) and the only button is Unlock on Take's key, which runs the
+			// game's own activation (lock picking, or the key).
+			int32_t lockLevel;
 		};
 
 		template <typename TEvent>
@@ -272,6 +277,16 @@ namespace QuickLoot::API
 			_interfaceEX2 = LoadInterface<InterfaceEX2>("GetQuickLootInterfaceEX2");
 
 			return IsReady(minVersion);
+		}
+
+		// Fork (EX2): also open on locked containers (no rows, an Unlock button, ViewChangedEvent2::lockLevel)
+		// and stay open on empty ones, so a window of your own can show a note line instead. Off by default;
+		// QuickLoot's own empty-container setting still applies to the Flash window when nobody asks.
+		static void SetShowLockedAndEmpty(bool show)
+		{
+			if (_interfaceEX2) {
+				_interfaceEX2->SetShowLockedAndEmpty(_plugin, show);
+			}
 		}
 
 		// Fork: true when the fork is new enough to send ViewChangedEvent2 (More's options and held state).
@@ -514,6 +529,7 @@ namespace QuickLoot::API
 		struct InterfaceEX2 : public InterfaceEX1
 		{
 			virtual void RegisterViewChanged2Handler(const char* plugin, ViewChanged2Handler handler);
+			virtual void SetShowLockedAndEmpty(const char* plugin, bool show);
 		};
 
 		static inline const char* _plugin;

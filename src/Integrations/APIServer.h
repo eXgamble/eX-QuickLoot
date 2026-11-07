@@ -56,7 +56,7 @@ namespace QuickLoot::API
 		// Fork: skipped (no copies made) when nobody listens.
 		static bool HasViewChangedHandlers();
 		static bool HasViewChanged2Handlers();
-		static void DispatchViewChangedEvent(RE::ObjectRefHandle container, const char* title, const RE::BSTArray<ItemStack>& items, int32_t selectedIndex, const RE::BSTArray<ButtonDefinition2>& buttons, bool stealing, const RE::BSTArray<ButtonDefinition2>& moreOptions, bool moreHeld);
+		static void DispatchViewChangedEvent(RE::ObjectRefHandle container, const char* title, const RE::BSTArray<ItemStack>& items, int32_t selectedIndex, const RE::BSTArray<ButtonDefinition2>& buttons, bool stealing, const RE::BSTArray<ButtonDefinition2>& moreOptions, bool moreHeld, int32_t lockLevel);
 
 	private:
 		static inline InterfaceEX2 _interface{};

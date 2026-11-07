@@ -148,6 +148,11 @@ namespace QuickLoot::API
 		APIServer::RegisterHandler(plugin, handler, APIServer::_viewChanged2Handlers);
 	}
 
+	void APIServer::InterfaceEX2::SetShowLockedAndEmpty(const char* plugin, bool show)
+	{
+		MenuVisibilityManager::SetShowLockedAndEmpty(plugin, show);
+	}
+
 #pragma endregion
 
 #pragma region Dispatch
@@ -315,7 +320,7 @@ namespace QuickLoot::API
 		return !_viewChanged2Handlers.empty();
 	}
 
-	void APIServer::DispatchViewChangedEvent(RE::ObjectRefHandle container, const char* title, const RE::BSTArray<ItemStack>& items, int32_t selectedIndex, const RE::BSTArray<ButtonDefinition2>& buttons, bool stealing, const RE::BSTArray<ButtonDefinition2>& moreOptions, bool moreHeld)
+	void APIServer::DispatchViewChangedEvent(RE::ObjectRefHandle container, const char* title, const RE::BSTArray<ItemStack>& items, int32_t selectedIndex, const RE::BSTArray<ButtonDefinition2>& buttons, bool stealing, const RE::BSTArray<ButtonDefinition2>& moreOptions, bool moreHeld, int32_t lockLevel)
 	{
 		ViewChangedEvent e{
 			.container = container,
@@ -332,6 +337,7 @@ namespace QuickLoot::API
 			.view = e,
 			.moreOptions = moreOptions,
 			.moreHeld = moreHeld,
+			.lockLevel = lockLevel,
 		};
 
 		DispatchEvent(_viewChanged2Handlers, e2);

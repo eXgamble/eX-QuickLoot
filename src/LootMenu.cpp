@@ -348,6 +348,11 @@ namespace QuickLoot
 			break;
 
 		case Input::QuickLootAction::kTake:
+			if (ShowsLock()) {
+				// Fork: Unlock runs the game's own activation: the lock picking menu, or the key.
+				RE::PlayerCharacter::GetSingleton()->ActivatePickRef();
+				break;
+			}
 			TakeStack();
 			break;
 
@@ -657,18 +662,34 @@ namespace QuickLoot
 		}
 		const bool moreHeld = !moreOptions.empty() && Input::InputManager::IsMoreLive();
 
-		API::APIServer::DispatchViewChangedEvent(_container, open ? _titleText.c_str() : "", items, _selectedIndex, _buttons, open && WouldBeStealing(), moreOptions, moreHeld);
+		const auto lockLevel = ShowsLock() ? static_cast<int32_t>(_container.get()->GetLockLevel()) : -1;
+
+		API::APIServer::DispatchViewChangedEvent(_container, open ? _titleText.c_str() : "", items, _selectedIndex, _buttons, open && WouldBeStealing(), moreOptions, moreHeld, lockLevel);
+	}
+
+	bool LootMenu::ShowsLock() const
+	{
+		if (!MenuVisibilityManager::ShowLockedAndEmpty()) {
+			return false;
+		}
+		const auto container = _container.get();
+		return container && container->IsLocked();
 	}
 
 	void LootMenu::LoadInventory()
 	{
 		PROFILE_SCOPE
 
-		auto inventory = Items::Inventory::LoadContainerInventory(_container.get().get(), CanDisplay);
+		// Fork: a locked container shown by request keeps what's inside hidden until it's opened.
+		const bool showsLock = ShowsLock();
+		auto inventory = showsLock ? RE::BSTArray<Items::InventoryEntry>{} :
+		                             Items::Inventory::LoadContainerInventory(_container.get().get(), CanDisplay);
 
-		API::APIServer::DispatchModifyInventoryEvent(_container, inventory);
+		if (!showsLock) {
+			API::APIServer::DispatchModifyInventoryEvent(_container, inventory);
+		}
 
-		if (inventory.empty() && !UserSettings::ShowWhenEmpty() && !MenuVisibilityManager::IsForcedContainer(_container)) {
+		if (inventory.empty() && !UserSettings::ShowWhenEmpty() && !MenuVisibilityManager::ShowLockedAndEmpty() && !MenuVisibilityManager::IsForcedContainer(_container)) {
 			LootMenuManager::RequestHide();
 			return;
 		} else {
@@ -785,10 +806,26 @@ namespace QuickLoot
 		const bool stealing = WouldBeStealing();
 		RE::BSTArray<API::ButtonDefinition2> buttons{};
 
+		// Fork: shown by request, a locked container offers only Unlock (on Take's key), and an empty one
+		// has nothing to take.
+		const bool showsLock = ShowsLock();
+		const bool showsEmpty = !showsLock && _inventory.empty() && MenuVisibilityManager::ShowLockedAndEmpty();
+
 		for (const auto& keybinding : keybindings) {
 			const auto index = keybinding.buttonArtOverride != Input::ButtonArtIndex::kNone ?
 			                       keybinding.buttonArtOverride :
 			                       Input::ButtonArt::GetFrameIndexForDeviceKey(keybinding.inputKey);
+
+			if (showsLock) {
+				if (keybinding.action == Input::QuickLootAction::kTake) {
+					const auto setting = RE::GameSettingCollection::GetSingleton()->GetSetting("sUnlock");
+					buttons.emplace_back(setting ? setting->GetString() : "Unlock", static_cast<uint16_t>(index), stealing, keybinding.action);
+				}
+				continue;
+			}
+			if (showsEmpty && keybinding.action == Input::QuickLootAction::kTake) {
+				continue;
+			}
 
 			// Fork: while More is held, the slots that carry a perk option show it; empty slots are left out.
 			if (Input::IsPerkOptionAction(keybinding.action)) {
@@ -807,7 +844,7 @@ namespace QuickLoot
 		}
 
 		// Fork: [LB] More always sits at the end of the bar when the target has perk options.
-		if (!_perkOptions.empty() && !Input::InputManager::IsMoreLive()) {
+		if (!showsLock && !_perkOptions.empty() && !Input::InputManager::IsMoreLive()) {
 			const auto index = Input::ButtonArt::GetFrameIndexForDeviceKey(Input::InputManager::GetMoreKey());
 			buttons.emplace_back("$qlie_More", static_cast<uint16_t>(index), false, API::QuickLootAction::kNone);
 		}

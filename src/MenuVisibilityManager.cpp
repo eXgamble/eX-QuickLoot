@@ -125,7 +125,8 @@ namespace QuickLoot
 			return false;
 		}
 
-		if (container->IsLocked()) {
+		// Fork: a consumer with its own window may show a locked container (no rows, just Unlock).
+		if (container->IsLocked() && !ShowLockedAndEmpty()) {
 			logger::debug("LootMenu disabled because container is locked");
 			return false;
 		}
@@ -365,6 +366,17 @@ namespace QuickLoot
 			logger::debug("OnLockChanged: {:08X}", container.GetFormID());
 		}
 
+		if (ShowLockedAndEmpty()) {
+			// Fork: the window was showing the lock; now it shows what's inside (or the lock, if it was relocked).
+			if (_currentContainer && container.GetHandle() == _currentContainer) {
+				LootMenuManager::RequestRefresh(RefreshFlags::kInventory);
+				LootMenuManager::RequestRefresh(RefreshFlags::kButtonBar);
+			} else if (container.GetHandle() == _focusedRef) {
+				RefreshOpenState();
+			}
+			return;
+		}
+
 		if (UserSettings::ShowWhenUnlocked() && container.GetHandle() == _focusedRef) {
 			RefreshOpenState();
 		}
@@ -382,7 +394,7 @@ namespace QuickLoot
 			return;
 		}
 
-		if (!opening && menuName == RE::LockpickingMenu::MENU_NAME && !UserSettings::ShowWhenUnlocked()) {
+		if (!opening && menuName == RE::LockpickingMenu::MENU_NAME && !UserSettings::ShowWhenUnlocked() && !ShowLockedAndEmpty()) {
 			// Without this the activation prompt will continue to show the container as locked
 			RE::PlayerCharacter::GetSingleton()->UpdateCrosshairs();
 
@@ -412,6 +424,28 @@ namespace QuickLoot
 	{
 		_forcedContainer = std::move(container);
 		RefreshOpenState();
+	}
+
+	void MenuVisibilityManager::SetShowLockedAndEmpty(const std::string& plugin, bool show)
+	{
+		bool changed;
+		{
+			std::scoped_lock lock{ _showLockedLock };
+			if (show) {
+				_showLockedPlugins.insert(plugin);
+			} else {
+				_showLockedPlugins.erase(plugin);
+			}
+			const bool wanted = !_showLockedPlugins.empty();
+			changed = _showLockedAndEmpty.exchange(wanted) != wanted;
+		}
+
+		logger::info("Plugin {} {} locked and empty containers", plugin, show ? "shows" : "no longer shows");
+
+		if (changed) {
+			// Open or close on what's in the crosshair now, from the game's own task queue.
+			SKSE::GetTaskInterface()->AddTask([] { RefreshOpenState(); });
+		}
 	}
 
 	bool MenuVisibilityManager::IsForcedContainer(const RE::ObjectRefHandle& container)

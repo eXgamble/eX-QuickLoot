@@ -129,6 +129,8 @@ namespace QuickLoot
 		[[nodiscard]] const char* GetActionDisplayName(Input::QuickLootAction action, bool stealing) const;
 		[[nodiscard]] static bool CanDisplay(const RE::TESBoundObject& object);
 		[[nodiscard]] bool WouldBeStealing() const;
+		// Fork: a consumer asked for locked containers and this one is locked (no rows, only Unlock).
+		[[nodiscard]] bool ShowsLock() const;
 
 		// UniversalMenu implementation
 		void PostCreate() override;

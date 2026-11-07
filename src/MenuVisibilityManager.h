@@ -28,6 +28,10 @@ namespace QuickLoot
 		static void SetForcedContainer(RE::ObjectRefHandle container);
 		static bool IsForcedContainer(const RE::ObjectRefHandle& container);
 
+		// Fork (EX2): a consumer that draws its own window asked to see locked and empty containers too.
+		static void SetShowLockedAndEmpty(const std::string& plugin, bool show);
+		static bool ShowLockedAndEmpty() { return _showLockedAndEmpty; }
+
 		static inline bool LOG_EVENTS = false;
 
 	private:
@@ -36,6 +40,10 @@ namespace QuickLoot
 		static inline RE::ObjectRefHandle _forcedContainer{};
 
 		static inline std::set<std::string> _disablingMods{};
+
+		static inline std::mutex _showLockedLock{};
+		static inline std::set<std::string> _showLockedPlugins{};
+		static inline std::atomic<bool> _showLockedAndEmpty{ false };
 
 		static RE::TESObjectREFRPtr GetContainerObject(RE::ObjectRefHandle ref);
 		static bool IsValidCameraState(RE::CameraState state);
