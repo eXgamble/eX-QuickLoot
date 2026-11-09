@@ -12,7 +12,7 @@ namespace QuickLoot::Integrations
 	public:
 		ModifierKeyFramework() = delete;
 
-		// nullptr without MKF, or with an MKF too old to list and run its actions.
+		// nullptr without MKF, or with an MKF too old to list and run its actions. More is off then.
 		static const MKF::API* Get()
 		{
 			static const MKF::API* api = [] {
@@ -20,11 +20,11 @@ namespace QuickLoot::Integrations
 				const auto get = module ? reinterpret_cast<MKF::GetAPI>(GetProcAddress(module, "MKF_GetAPI")) : nullptr;
 				const MKF::API* found = get ? get() : nullptr;
 				if (!found) {
-					logger::info("Modifier Key Framework not found: no MKF actions on the More bar");
+					logger::info("Modifier Key Framework not found: More is off (it needs MKF 1.9.0 or newer)");
 					return static_cast<const MKF::API*>(nullptr);
 				}
 				if (found->version < 3) {
-					logger::info("Modifier Key Framework API {} is older than 3: no MKF actions on the More bar", found->version);
+					logger::info("Modifier Key Framework API {} is older than 3: More is off (it needs MKF 1.9.0 or newer)", found->version);
 					return static_cast<const MKF::API*>(nullptr);
 				}
 				logger::info("Modifier Key Framework API {}: its modifier actions go on the More bar", found->version);

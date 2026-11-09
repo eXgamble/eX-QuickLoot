@@ -16,6 +16,7 @@
 #include "Integrations/BetterThirdPersonSelection.h"
 #include "Integrations/Completionist.h"
 #include "Integrations/DismemberingFramework.h"
+#include "Integrations/ModifierKeyFramework.h"
 #include "Integrations/NPCsNamesDistributor.h"
 #include "Observers/CameraStateObserver.h"
 #include "Observers/CombatStateObserver.h"
@@ -52,9 +53,83 @@ static void LogView(QuickLoot::API::ViewChangedEvent* e)
 		e->selectedIndex, selected, e->stealing ? " stealing" : "", buttons);
 }
 
+// Fork: More requires Modifier Key Framework 1.9.0+ (API 3). Without it the loot window still works
+// (Take, Transfer), and the player is told once per game launch, after the first load or new game.
+// The box waits until the load is really over: the loading screen has closed and no fade or other box is
+// up. kPostLoadGame arrives while the main menu is still up; a box raised then is lost (measured 2026-11-08).
+class MKFWarning final : public RE::BSTEventSink<RE::MenuOpenCloseEvent>
+{
+public:
+	static MKFWarning* Get()
+	{
+		static MKFWarning singleton;
+		return &singleton;
+	}
+
+	void Arm()
+	{
+		if (_armed || REL::Module::IsVR() || QuickLoot::Integrations::ModifierKeyFramework::Get()) {
+			return;
+		}
+		_armed = true;
+		RE::UI::GetSingleton()->AddEventSink<RE::MenuOpenCloseEvent>(this);
+	}
+
+	RE::BSEventNotifyControl ProcessEvent(const RE::MenuOpenCloseEvent* event, RE::BSTEventSource<RE::MenuOpenCloseEvent>*) override
+	{
+		if (!event || _shown) {
+			return RE::BSEventNotifyControl::kContinue;
+		}
+		logger::debug("[MKF warning] {} {}", event->menuName.c_str(), event->opening ? "opened" : "closed");
+		if (!event->opening) {
+			if (event->menuName == RE::LoadingMenu::MENU_NAME) {
+				_loadDone = true;
+			}
+			TryShow(event->menuName);
+		}
+		return RE::BSEventNotifyControl::kContinue;
+	}
+
+private:
+	// closing: the menu whose close event this is (it may still count as open while its event is sent).
+	void TryShow(const RE::BSFixedString& closing)
+	{
+		const auto ui = RE::UI::GetSingleton();
+		if (_shown || !_loadDone || !ui) {
+			return;
+		}
+		for (const auto& name : { RE::LoadingMenu::MENU_NAME, RE::FaderMenu::MENU_NAME, RE::MessageBoxMenu::MENU_NAME, RE::MainMenu::MENU_NAME }) {
+			if (closing != name && ui->IsMenuOpen(name)) {
+				return;
+			}
+		}
+		_shown = true;
+		logger::info("Modifier Key Framework missing: telling the player More is off");
+		SKSE::GetTaskInterface()->AddTask([] {
+			RE::UI::GetSingleton()->RemoveEventSink<RE::MenuOpenCloseEvent>(Get());
+			RE::DebugMessageBox("eX QuickLoot: the More button needs Modifier Key Framework 1.9.0 or newer. "
+								"Looting still works, but More is off until it's installed.");
+		});
+	}
+
+	bool _armed = false;
+	bool _loadDone = false;
+	bool _shown = false;
+};
+
+static void WarnIfNoMKF()
+{
+	MKFWarning::Get()->Arm();
+}
+
 static void OnSKSEMessage(SKSE::MessagingInterface::Message* msg)
 {
 	switch (msg->type) {
+	case SKSE::MessagingInterface::kPostLoadGame:
+	case SKSE::MessagingInterface::kNewGame:
+		WarnIfNoMKF();
+		break;
+
 	case SKSE::MessagingInterface::kDataLoaded:
 		{
 			PROFILE_SCOPE_NAMED("SKSE Message (kDataLoaded)");

@@ -766,16 +766,17 @@ namespace QuickLoot
 	{
 		std::vector<MoreOption> options;
 
+		// More requires Modifier Key Framework 1.9.0+ (API 3): its key and slots are MKF's. Without it the
+		// window keeps Take and Transfer only, and the player was told once after loading (XSEPlugin.cpp).
 		const auto container = _container.get();
-		if (container && !REL::Module::IsVR()) {
+		const auto mkf = Integrations::ModifierKeyFramework::Get();
+		if (container && mkf && !REL::Module::IsVR()) {
 			// MKF's modifier actions keep MKF's own slots (Activate, then its two slot controls), the same
 			// buttons they have on any NPC or object; the perk options fill the slots after them.
-			if (const auto mkf = Integrations::ModifierKeyFramework::Get()) {
-				MKF::ModifierActions actions{};
-				if (mkf->getModifierActions(container->GetFormID(), &actions)) {
-					for (std::uint32_t slot = 0; slot < actions.count && options.size() < 3; ++slot) {
-						options.push_back({ actions.slots[slot].label, actions.slots[slot].crime, slot + 1 });
-					}
+			MKF::ModifierActions actions{};
+			if (mkf->getModifierActions(container->GetFormID(), &actions)) {
+				for (std::uint32_t slot = 0; slot < actions.count && options.size() < 3; ++slot) {
+					options.push_back({ actions.slots[slot].label, actions.slots[slot].crime, slot + 1 });
 				}
 			}
 			for (auto& option : Behaviors::PerkOptions::List(container.get())) {
