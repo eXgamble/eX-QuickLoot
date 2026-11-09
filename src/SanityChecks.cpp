@@ -41,7 +41,7 @@ bool QuickLoot::SanityChecks::ValidateSwf()
 
 			ShowFatalError(
 				"LootMenuIE.swf is missing. "
-				"This file is required by QuickLoot IE. "
+				"This file is required by eX QuickLoot. "
 				"Please make sure the mod is installed correctly."
 				"\n\nExit game now? (Recommend yes)");
 
@@ -61,7 +61,7 @@ bool QuickLoot::SanityChecks::ValidateSwf()
 		logger::error("Incompatible swf");
 
 		ShowFatalError(
-			"The installed version of LootMenuIE.swf is not compatible with QuickLoot IE."
+			"The installed version of LootMenuIE.swf is not compatible with eX QuickLoot."
 			"\n\nExit game now? (Recommend yes)");
 
 		return false;

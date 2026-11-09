@@ -86,15 +86,14 @@ function CheckVersionChange()
 	endif
 endfunction
 
+; Fork (eX QuickLoot): updates run silently, the log only. Players moving over from QuickLoot IE
+; don't need to be told their settings were carried over.
 function UpdateVersion()
-	Notification("QuickLoot IE: Running updates...")
-
 	if LastVersionNumber < 4000
 		Migrate4000()
 	endif
 
 	LogWithPlugin("Updated from version " + LastVersionString + " to " + CurrentVersionString)
-	Notification("QuickLoot IE: Updated to version " + CurrentVersionString)
 
 	UpdateLastVersion()
 endfunction
@@ -110,7 +109,7 @@ function Migrate4000()
 	MCMScript.QLIE_KeybindingDisableModifier = ModifierEnumToKeyCode(MCMScript.QLIE_KeybindingDisableModifier)
 	MCMScript.QLIE_KeybindingEnableModifier = ModifierEnumToKeyCode(MCMScript.QLIE_KeybindingEnableModifier)
 
-	Notification("Migrating control presets")
+	LogWithPlugin("Migrating control presets")
 	MigrateControlPreset(MCMScript.ConfigPath)
 	string[] presets = JsonUtil.JsonInFolder(MCMScript.ControlPresetPath)
 	int i = 0
@@ -129,7 +128,7 @@ function MigrateControlPreset(string path)
 		return
 	endif
 
-	Notification(path)
+	LogWithPlugin("Migrating control preset " + path)
 
 	; Signal that we're using keycodes instead of the modifier enum
 	JsonUtil.SetPathIntValue(path, "KeybindingNewFormat", 1)
