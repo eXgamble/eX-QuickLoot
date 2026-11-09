@@ -26,6 +26,11 @@ namespace QuickLoot::API
 		return APIServer::GetInterfaceEX2();
 	}
 
+	extern "C" __declspec(dllexport) void* GetQuickLootInterfaceEX3()
+	{
+		return APIServer::GetInterfaceEX3();
+	}
+
 #pragma region Interface
 
 	void APIServer::InterfaceV20::DisableLootMenu(const char* plugin)
@@ -151,6 +156,11 @@ namespace QuickLoot::API
 	void APIServer::InterfaceEX2::SetShowLockedAndEmpty(const char* plugin, bool show)
 	{
 		MenuVisibilityManager::SetShowLockedAndEmpty(plugin, show);
+	}
+
+	void APIServer::InterfaceEX3::SetShowEmpty(const char* plugin, bool show)
+	{
+		MenuVisibilityManager::SetShowEmpty(plugin, show);
 	}
 
 #pragma endregion

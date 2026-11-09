@@ -669,7 +669,7 @@ namespace QuickLoot
 
 	bool LootMenu::ShowsLock() const
 	{
-		if (!MenuVisibilityManager::ShowLockedAndEmpty()) {
+		if (!MenuVisibilityManager::ShowLocked()) {
 			return false;
 		}
 		const auto container = _container.get();
@@ -689,7 +689,7 @@ namespace QuickLoot
 			API::APIServer::DispatchModifyInventoryEvent(_container, inventory);
 		}
 
-		if (inventory.empty() && !UserSettings::ShowWhenEmpty() && !MenuVisibilityManager::ShowLockedAndEmpty() && !MenuVisibilityManager::IsForcedContainer(_container)) {
+		if (inventory.empty() && !UserSettings::ShowWhenEmpty() && !MenuVisibilityManager::ShowEmpty() && !MenuVisibilityManager::IsForcedContainer(_container)) {
 			LootMenuManager::RequestHide();
 			return;
 		} else {
@@ -810,7 +810,7 @@ namespace QuickLoot
 		// Fork: shown by request, a locked container offers only Unlock (on Take's key), and an empty one
 		// has nothing to take.
 		const bool showsLock = ShowsLock();
-		const bool showsEmpty = !showsLock && _inventory.empty() && MenuVisibilityManager::ShowLockedAndEmpty();
+		const bool showsEmpty = !showsLock && _inventory.empty() && MenuVisibilityManager::ShowEmpty();
 
 		for (const auto& keybinding : keybindings) {
 			const auto index = keybinding.buttonArtOverride != Input::ButtonArtIndex::kNone ?

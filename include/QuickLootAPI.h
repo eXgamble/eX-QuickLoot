@@ -275,6 +275,7 @@ namespace QuickLoot::API
 			_interfaceV21 = LoadInterface<InterfaceV21>("GetQuickLootInterfaceV21");
 			_interfaceEX1 = LoadInterface<InterfaceEX1>("GetQuickLootInterfaceEX1");
 			_interfaceEX2 = LoadInterface<InterfaceEX2>("GetQuickLootInterfaceEX2");
+			_interfaceEX3 = LoadInterface<InterfaceEX3>("GetQuickLootInterfaceEX3");
 
 			return IsReady(minVersion);
 		}
@@ -287,6 +288,18 @@ namespace QuickLoot::API
 			if (_interfaceEX2) {
 				_interfaceEX2->SetShowLockedAndEmpty(_plugin, show);
 			}
+		}
+
+		// Fork (EX3): stay open on empty containers only (the note line), while locked ones keep QuickLoot's
+		// usual behaviour (no window; the game's activation prompt handles the lock). False when the fork is
+		// older than EX3: then nothing changed.
+		static bool SetShowEmpty(bool show)
+		{
+			if (!_interfaceEX3) {
+				return false;
+			}
+			_interfaceEX3->SetShowEmpty(_plugin, show);
+			return true;
 		}
 
 		// Fork: true when the fork is new enough to send ViewChangedEvent2 (More's options and held state).
@@ -532,10 +545,16 @@ namespace QuickLoot::API
 			virtual void SetShowLockedAndEmpty(const char* plugin, bool show);
 		};
 
+		struct InterfaceEX3 : public InterfaceEX2
+		{
+			virtual void SetShowEmpty(const char* plugin, bool show);
+		};
+
 		static inline const char* _plugin;
 		static inline InterfaceV20* _interfaceV20;
 		static inline InterfaceV21* _interfaceV21;
 		static inline InterfaceEX1* _interfaceEX1;
 		static inline InterfaceEX2* _interfaceEX2;
+		static inline InterfaceEX3* _interfaceEX3;
 	};
 }

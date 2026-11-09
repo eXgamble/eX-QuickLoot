@@ -23,16 +23,19 @@ namespace QuickLoot::API
 		using InterfaceV21 = QuickLootAPI::InterfaceV21;
 		using InterfaceEX1 = QuickLootAPI::InterfaceEX1;
 		using InterfaceEX2 = QuickLootAPI::InterfaceEX2;
+		using InterfaceEX3 = QuickLootAPI::InterfaceEX3;
 
 		friend struct QuickLootAPI::InterfaceV20;
 		friend struct QuickLootAPI::InterfaceV21;
 		friend struct QuickLootAPI::InterfaceEX1;
 		friend struct QuickLootAPI::InterfaceEX2;
+		friend struct QuickLootAPI::InterfaceEX3;
 
 		static InterfaceV20* GetInterfaceV20() { return &_interface; }
 		static InterfaceV21* GetInterfaceV21() { return &_interface; }
 		static InterfaceEX1* GetInterfaceEX1() { return &_interface; }
 		static InterfaceEX2* GetInterfaceEX2() { return &_interface; }
+		static InterfaceEX3* GetInterfaceEX3() { return &_interface; }
 
 		static HandleResult DispatchTakingItemEvent(RE::Actor* actor, RE::ObjectRefHandle container, RE::InventoryEntryData* entry, RE::ObjectRefHandle dropRef);
 		static void DispatchTakeItemEvent(RE::Actor* actor, RE::ObjectRefHandle container, RE::InventoryEntryData* entry, RE::ObjectRefHandle dropRef);
@@ -59,7 +62,7 @@ namespace QuickLoot::API
 		static void DispatchViewChangedEvent(RE::ObjectRefHandle container, const char* title, const RE::BSTArray<ItemStack>& items, int32_t selectedIndex, const RE::BSTArray<ButtonDefinition2>& buttons, bool stealing, const RE::BSTArray<ButtonDefinition2>& moreOptions, bool moreHeld, int32_t lockLevel);
 
 	private:
-		static inline InterfaceEX2 _interface{};
+		static inline InterfaceEX3 _interface{};
 		static inline std::shared_mutex _lock{};
 
 		static inline std::vector<TakingItemHandler> _takingItemHandlers{};

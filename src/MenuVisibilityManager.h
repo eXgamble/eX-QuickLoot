@@ -28,9 +28,12 @@ namespace QuickLoot
 		static void SetForcedContainer(RE::ObjectRefHandle container);
 		static bool IsForcedContainer(const RE::ObjectRefHandle& container);
 
-		// Fork (EX2): a consumer that draws its own window asked to see locked and empty containers too.
+		// Fork: a consumer that draws its own window asked to see empty containers too (EX3 SetShowEmpty), or
+		// locked and empty ones (EX2 SetShowLockedAndEmpty, both flags at once).
 		static void SetShowLockedAndEmpty(const std::string& plugin, bool show);
-		static bool ShowLockedAndEmpty() { return _showLockedAndEmpty; }
+		static void SetShowEmpty(const std::string& plugin, bool show);
+		static bool ShowLocked() { return _showLocked; }
+		static bool ShowEmpty() { return _showEmpty; }
 
 		static inline bool LOG_EVENTS = false;
 
@@ -41,9 +44,14 @@ namespace QuickLoot
 
 		static inline std::set<std::string> _disablingMods{};
 
-		static inline std::mutex _showLockedLock{};
+		static inline std::mutex _showLock{};
 		static inline std::set<std::string> _showLockedPlugins{};
-		static inline std::atomic<bool> _showLockedAndEmpty{ false };
+		static inline std::set<std::string> _showEmptyPlugins{};
+		static inline std::atomic<bool> _showLocked{ false };
+		static inline std::atomic<bool> _showEmpty{ false };
+
+		// Adds or removes the plugin and updates the flag; true when the flag changed.
+		static bool SetShow(std::set<std::string>& plugins, std::atomic<bool>& flag, const std::string& plugin, bool show);
 
 		static RE::TESObjectREFRPtr GetContainerObject(RE::ObjectRefHandle ref);
 		static bool IsValidCameraState(RE::CameraState state);

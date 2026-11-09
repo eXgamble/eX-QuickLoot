@@ -126,7 +126,7 @@ namespace QuickLoot
 		}
 
 		// Fork: a consumer with its own window may show a locked container (no rows, just Unlock).
-		if (container->IsLocked() && !ShowLockedAndEmpty()) {
+		if (container->IsLocked() && !ShowLocked()) {
 			logger::debug("LootMenu disabled because container is locked");
 			return false;
 		}
@@ -366,7 +366,7 @@ namespace QuickLoot
 			logger::debug("OnLockChanged: {:08X}", container.GetFormID());
 		}
 
-		if (ShowLockedAndEmpty()) {
+		if (ShowLocked()) {
 			// Fork: the window was showing the lock; now it shows what's inside (or the lock, if it was relocked).
 			if (_currentContainer && container.GetHandle() == _currentContainer) {
 				LootMenuManager::RequestRefresh(RefreshFlags::kInventory);
@@ -394,7 +394,7 @@ namespace QuickLoot
 			return;
 		}
 
-		if (!opening && menuName == RE::LockpickingMenu::MENU_NAME && !UserSettings::ShowWhenUnlocked() && !ShowLockedAndEmpty()) {
+		if (!opening && menuName == RE::LockpickingMenu::MENU_NAME && !UserSettings::ShowWhenUnlocked() && !ShowLocked()) {
 			// Without this the activation prompt will continue to show the container as locked
 			RE::PlayerCharacter::GetSingleton()->UpdateCrosshairs();
 
@@ -426,19 +426,32 @@ namespace QuickLoot
 		RefreshOpenState();
 	}
 
+	bool MenuVisibilityManager::SetShow(std::set<std::string>& plugins, std::atomic<bool>& flag, const std::string& plugin, bool show)
+	{
+		std::scoped_lock lock{ _showLock };
+		if (show) {
+			plugins.insert(plugin);
+		} else {
+			plugins.erase(plugin);
+		}
+		const bool wanted = !plugins.empty();
+		return flag.exchange(wanted) != wanted;
+	}
+
+	void MenuVisibilityManager::SetShowEmpty(const std::string& plugin, bool show)
+	{
+		const bool changed = SetShow(_showEmptyPlugins, _showEmpty, plugin, show);
+		logger::info("Plugin {} {} empty containers", plugin, show ? "shows" : "no longer shows");
+		if (changed) {
+			SKSE::GetTaskInterface()->AddTask([] { RefreshOpenState(); });
+		}
+	}
+
 	void MenuVisibilityManager::SetShowLockedAndEmpty(const std::string& plugin, bool show)
 	{
-		bool changed;
-		{
-			std::scoped_lock lock{ _showLockedLock };
-			if (show) {
-				_showLockedPlugins.insert(plugin);
-			} else {
-				_showLockedPlugins.erase(plugin);
-			}
-			const bool wanted = !_showLockedPlugins.empty();
-			changed = _showLockedAndEmpty.exchange(wanted) != wanted;
-		}
+		const bool lockedChanged = SetShow(_showLockedPlugins, _showLocked, plugin, show);
+		const bool emptyChanged = SetShow(_showEmptyPlugins, _showEmpty, plugin, show);
+		const bool changed = lockedChanged || emptyChanged;
 
 		logger::info("Plugin {} {} locked and empty containers", plugin, show ? "shows" : "no longer shows");
 
