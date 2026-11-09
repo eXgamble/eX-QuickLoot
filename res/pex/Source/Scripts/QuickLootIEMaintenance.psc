@@ -103,9 +103,6 @@ function Migrate4000()
 	MCMScript.IsInitialLoad = false
 
 	; Migrate to new modifier format (key code instead of enum)
-	MCMScript.QLIE_KeybindingTakeModifier = ModifierEnumToKeyCode(MCMScript.QLIE_KeybindingTakeModifier)
-	MCMScript.QLIE_KeybindingTakeAllModifier = ModifierEnumToKeyCode(MCMScript.QLIE_KeybindingTakeAllModifier)
-	MCMScript.QLIE_KeybindingTransferModifier = ModifierEnumToKeyCode(MCMScript.QLIE_KeybindingTransferModifier)
 	MCMScript.QLIE_KeybindingDisableModifier = ModifierEnumToKeyCode(MCMScript.QLIE_KeybindingDisableModifier)
 	MCMScript.QLIE_KeybindingEnableModifier = ModifierEnumToKeyCode(MCMScript.QLIE_KeybindingEnableModifier)
 
@@ -133,9 +130,6 @@ function MigrateControlPreset(string path)
 	; Signal that we're using keycodes instead of the modifier enum
 	JsonUtil.SetPathIntValue(path, "KeybindingNewFormat", 1)
 
-	JsonUtil.SetPathIntValue(path, "KeybindingTakeModifier", ModifierEnumToKeyCode(JsonUtil.GetPathIntValue(path, "KeybindingTakeModifier", 0)))
-	JsonUtil.SetPathIntValue(path, "KeybindingTakeAllModifier", ModifierEnumToKeyCode(JsonUtil.GetPathIntValue(path, "KeybindingTakeAllModifier", 0)))
-	JsonUtil.SetPathIntValue(path, "KeybindingTransferModifier", ModifierEnumToKeyCode(JsonUtil.GetPathIntValue(path, "KeybindingTransferModifier", 0)))
 	JsonUtil.SetPathIntValue(path, "KeybindingDisableModifier", ModifierEnumToKeyCode(JsonUtil.GetPathIntValue(path, "KeybindingDisableModifier", 0)))
 	JsonUtil.SetPathIntValue(path, "KeybindingEnableModifier", ModifierEnumToKeyCode(JsonUtil.GetPathIntValue(path, "KeybindingEnableModifier", 0)))
 
