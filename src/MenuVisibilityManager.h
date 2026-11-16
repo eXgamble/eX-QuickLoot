@@ -25,6 +25,10 @@ namespace QuickLoot
 		static void OnMenuOpenClose(bool opening, const RE::BSFixedString& menuName);
 		static void OnSneakStateChanged();
 
+		// Fork: close the window on this target and keep it closed until the crosshair leaves it
+		// (after an MKF action such as Pick Up Carcass, which carries the target away).
+		static void DismissUntilLookAway(const RE::ObjectRefHandle& container);
+
 		static void SetForcedContainer(RE::ObjectRefHandle container);
 		static bool IsForcedContainer(const RE::ObjectRefHandle& container);
 
@@ -41,6 +45,7 @@ namespace QuickLoot
 		static inline RE::ObjectRefHandle _focusedRef{};
 		static inline RE::ObjectRefHandle _currentContainer{};
 		static inline RE::ObjectRefHandle _forcedContainer{};
+		static inline RE::ObjectRefHandle _dismissedRef{};
 
 		static inline std::set<std::string> _disablingMods{};
 

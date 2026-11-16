@@ -550,6 +550,12 @@ namespace QuickLoot
 					const auto mkf = Integrations::ModifierKeyFramework::Get();
 					const bool ran = mkf && mkf->runModifierAction(target->GetFormID(), option.mkfSlot);
 					logger::info("MKF action '{}' (slot {}) on {:08X}: {}", option.label, option.mkfSlot, target->GetFormID(), ran ? "ran" : "failed");
+					if (ran) {
+						// The action belongs to another mod (Pick Up Carcass carries the body away): step aside
+						// until the player looks at something else, instead of showing the body's items meanwhile.
+						MenuVisibilityManager::DismissUntilLookAway(handle);
+						return;
+					}
 				} else {
 					const bool ran = Behaviors::PerkOptions::Run(target.get(), option.label);
 					logger::info("Perk option '{}' on {:08X}: {}", option.label, target->GetFormID(), ran ? "ran" : "failed");

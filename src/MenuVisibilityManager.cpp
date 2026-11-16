@@ -131,6 +131,11 @@ namespace QuickLoot
 			return false;
 		}
 
+		if (_dismissedRef && container->GetHandle() == _dismissedRef) {
+			logger::debug("LootMenu disabled until the crosshair leaves {:08X} (a More action ran on it)", container->formID);
+			return false;
+		}
+
 		if (container->IsActivationBlocked()) {
 			logger::debug("LootMenu disabled because container activation is blocked");
 			return false;
@@ -333,6 +338,17 @@ namespace QuickLoot
 
 		if (ref != _focusedRef) {
 			_focusedRef = ref;
+			if (_dismissedRef && ref != _dismissedRef) {
+				_dismissedRef.reset();
+			}
+			RefreshOpenState();
+		}
+	}
+
+	void MenuVisibilityManager::DismissUntilLookAway(const RE::ObjectRefHandle& container)
+	{
+		_dismissedRef = container;
+		if (container) {  // an empty handle only clears it (on load), nothing to close
 			RefreshOpenState();
 		}
 	}

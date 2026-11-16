@@ -2,6 +2,7 @@
 
 #include "LootMenu.h"
 #include "LootMenuManager.h"
+#include "MenuVisibilityManager.h"
 #include "SanityChecks.h"
 #include "Behaviors/ActivationPrompt.h"
 #include "Behaviors/LockpickActivation.h"
@@ -127,6 +128,7 @@ static void OnSKSEMessage(SKSE::MessagingInterface::Message* msg)
 	switch (msg->type) {
 	case SKSE::MessagingInterface::kPostLoadGame:
 	case SKSE::MessagingInterface::kNewGame:
+		QuickLoot::MenuVisibilityManager::DismissUntilLookAway({});  // an old handle may name another object now
 		WarnIfNoMKF();
 		break;
 
