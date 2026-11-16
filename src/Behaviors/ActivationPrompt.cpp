@@ -1,5 +1,6 @@
 #include "ActivationPrompt.h"
 
+#include "MenuVisibilityManager.h"
 #include "RE/U/UIMessageQueue.h"
 #include "RE/W/WSActivateRollover.h"
 
@@ -23,7 +24,9 @@ namespace QuickLoot::Behaviors
 	{
 		static void thunk(RE::UIMessageQueue* _this, const RE::BSFixedString& menuName, RE::UI_MESSAGE_TYPE type, RE::HUDData* data)
 		{
-			if (ActivationPrompt::IsBlocked() && (data->type == RE::HUD_MESSAGE_TYPE::kSetCrosshairTarget || data->type == RE::HUD_MESSAGE_TYPE::kSetCrosshairTargetTextOnly)) {
+			// Fork: also while a More action (Pick Up Carcass) carries the target away after the window closed.
+			const bool dismissed = Config::SystemSettings::SuppressActivationPrompt() && data && MenuVisibilityManager::IsDismissed(data->crosshairRef);
+			if ((ActivationPrompt::IsBlocked() || dismissed) && (data->type == RE::HUD_MESSAGE_TYPE::kSetCrosshairTarget || data->type == RE::HUD_MESSAGE_TYPE::kSetCrosshairTargetTextOnly)) {
 				std::string text = data->text.c_str();
 				std::ranges::replace(text, '\n', ' ');
 				logger::trace("Blocking activation prompt '{}'", text);

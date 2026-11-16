@@ -28,6 +28,7 @@ namespace QuickLoot
 		// Fork: close the window on this target and keep it closed until the crosshair leaves it
 		// (after an MKF action such as Pick Up Carcass, which carries the target away).
 		static void DismissUntilLookAway(const RE::ObjectRefHandle& container);
+		static bool IsDismissed(const RE::ObjectRefHandle& ref) { return ref && ref == _dismissedRef; }
 
 		static void SetForcedContainer(RE::ObjectRefHandle container);
 		static bool IsForcedContainer(const RE::ObjectRefHandle& container);

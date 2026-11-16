@@ -1,5 +1,8 @@
 #include "PerkOptions.h"
 
+#include "Input/Input.h"
+#include "LootMenuManager.h"
+
 namespace QuickLoot::Behaviors
 {
 	namespace
@@ -170,6 +173,18 @@ namespace QuickLoot::Behaviors
 			});
 		}
 
+		// Presses More slot aiSlot (0-2) of the open window exactly as its button would (footage and tests:
+		// an injected key also reaches MKF itself, so the action ran twice).
+		void PressMore(RE::StaticFunctionTag*, std::int32_t a_slot)
+		{
+			if (a_slot < 0 || a_slot > 2) {
+				return;
+			}
+			const auto action = static_cast<Input::QuickLootAction>(static_cast<int>(Input::QuickLootAction::kPerkOption1) + a_slot);
+			logger::info("[PerkOptions] PressMore {}", a_slot);
+			LootMenuManager::OnInputAction(action);
+		}
+
 		void SearchTarget(RE::StaticFunctionTag*, RE::TESObjectREFR* a_target)
 		{
 			if (!a_target) {
@@ -238,6 +253,7 @@ namespace QuickLoot::Behaviors
 		a_vm->RegisterFunction("ListOptions", script, ListOptions);
 		a_vm->RegisterFunction("RunIndex", script, RunIndex);
 		a_vm->RegisterFunction("SearchTarget", script, SearchTarget);
+		a_vm->RegisterFunction("PressMore", script, PressMore);
 		return true;
 	}
 }

@@ -9,3 +9,6 @@ Function RunIndex(ObjectReference akTarget, Int aiIndex) global native
 
 ; Activates akTarget and answers the choice popup with the default (Search).
 Function SearchTarget(ObjectReference akTarget) global native
+
+; Presses More slot aiSlot (0-2) of the open loot window, as its button would (runs the option, MKF actions included).
+Function PressMore(Int aiSlot) global native
