@@ -1,15 +1,19 @@
 Scriptname SKI_ConfigBase extends SKI_QuestBase Hidden
 ; compile-only stub generated from the papyrus-reference SkyUI SDK signatures (eX QuickLoot release)
 
-String Property CurrentPage Auto
-Int Property LEFT_TO_RIGHT = 1 Auto
+String Property CurrentPage Hidden
+	String Function Get()
+		return ""
+	EndFunction
+EndProperty
+Int Property LEFT_TO_RIGHT = 1 AutoReadOnly
 String Property ModName Auto
-Int Property OPTION_FLAG_DISABLED = 0x1 Auto
-Int Property OPTION_FLAG_HIDDEN = 0x2 Auto
-Int Property OPTION_FLAG_NONE = 0x0 Auto
-Int Property OPTION_FLAG_WITH_UNMAP = 0x4 Auto
+Int Property OPTION_FLAG_DISABLED = 0x1 AutoReadOnly
+Int Property OPTION_FLAG_HIDDEN = 0x2 AutoReadOnly
+Int Property OPTION_FLAG_NONE = 0x0 AutoReadOnly
+Int Property OPTION_FLAG_WITH_UNMAP = 0x4 AutoReadOnly
 String[] Property Pages Auto
-Int Property TOP_TO_BOTTOM = 2 Auto
+Int Property TOP_TO_BOTTOM = 2 AutoReadOnly
 Event OnColorAcceptST(Int a_color)
 EndEvent
 Event OnColorOpenST()
