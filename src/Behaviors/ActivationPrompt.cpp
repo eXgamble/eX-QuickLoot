@@ -25,7 +25,8 @@ namespace QuickLoot::Behaviors
 		static void thunk(RE::UIMessageQueue* _this, const RE::BSFixedString& menuName, RE::UI_MESSAGE_TYPE type, RE::HUDData* data)
 		{
 			// Fork: also while a More action (Pick Up Carcass) carries the target away after the window closed.
-			const bool dismissed = Config::SystemSettings::SuppressActivationPrompt() && data && MenuVisibilityManager::IsDismissed(data->crosshairRef);
+			// and while a perk option's animation plays (Feed, Harvest Blood) with the window stepped aside.
+			const bool dismissed = Config::SystemSettings::SuppressActivationPrompt() && data && MenuVisibilityManager::IsPromptHidden(data->crosshairRef);
 			if ((ActivationPrompt::IsBlocked() || dismissed) && (data->type == RE::HUD_MESSAGE_TYPE::kSetCrosshairTarget || data->type == RE::HUD_MESSAGE_TYPE::kSetCrosshairTargetTextOnly)) {
 				std::string text = data->text.c_str();
 				std::ranges::replace(text, '\n', ' ');

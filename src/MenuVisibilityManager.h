@@ -30,6 +30,13 @@ namespace QuickLoot
 		static void DismissUntilLookAway(const RE::ObjectRefHandle& container);
 		static bool IsDismissed(const RE::ObjectRefHandle& ref) { return ref && ref == _dismissedRef; }
 
+		// Fork: keep the game's crosshair prompt off this target while a perk option's animation plays (Feed,
+		// Harvest Blood: the window steps aside for the third-person animation and "Search" flashed up).
+		// Cleared when the window shows again or the crosshair leaves the target.
+		static void HidePromptDuringAction(const RE::ObjectRefHandle& container) { _promptHiddenRef = container; }
+		static void ClearPromptHide() { _promptHiddenRef.reset(); }
+		static bool IsPromptHidden(const RE::ObjectRefHandle& ref) { return ref && (ref == _dismissedRef || ref == _promptHiddenRef); }
+
 		static void SetForcedContainer(RE::ObjectRefHandle container);
 		static bool IsForcedContainer(const RE::ObjectRefHandle& container);
 
@@ -47,6 +54,7 @@ namespace QuickLoot
 		static inline RE::ObjectRefHandle _currentContainer{};
 		static inline RE::ObjectRefHandle _forcedContainer{};
 		static inline RE::ObjectRefHandle _dismissedRef{};
+		static inline RE::ObjectRefHandle _promptHiddenRef{};
 
 		static inline std::set<std::string> _disablingMods{};
 

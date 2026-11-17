@@ -557,7 +557,13 @@ namespace QuickLoot
 						return;
 					}
 				} else {
+					// Before Run: the window closes for the animation's camera, and the game would show its
+					// own "Search" prompt over the body until the window comes back.
+					MenuVisibilityManager::HidePromptDuringAction(handle);
 					const bool ran = Behaviors::PerkOptions::Run(target.get(), option.label);
+					if (!ran) {
+						MenuVisibilityManager::ClearPromptHide();
+					}
 					logger::info("Perk option '{}' on {:08X}: {}", option.label, target->GetFormID(), ran ? "ran" : "failed");
 				}
 			}

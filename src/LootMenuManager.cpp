@@ -34,6 +34,9 @@ namespace QuickLoot
 
 		Behaviors::ContainerAnimator::CloseContainer(_currentContainer);
 
+		// The window is back (e.g. after Feed's animation): its own prompt block takes over again.
+		MenuVisibilityManager::ClearPromptHide();
+
 		if (!RE::PlayerCamera::GetSingleton()->IsInThirdPerson() ||
 			!Integrations::BetterThirdPersonSelection::Is3DWidgetEnabled()) {
 			Behaviors::ActivationPrompt::Block();

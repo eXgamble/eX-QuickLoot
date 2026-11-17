@@ -341,6 +341,9 @@ namespace QuickLoot
 			if (_dismissedRef && ref != _dismissedRef) {
 				_dismissedRef.reset();
 			}
+			if (_promptHiddenRef && ref != _promptHiddenRef) {
+				_promptHiddenRef.reset();
+			}
 			RefreshOpenState();
 		}
 	}
