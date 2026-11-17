@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.22)
 
 project(
 	QuickLootIE
-	VERSION 4.0.0
+	VERSION 4.2.0
 	LANGUAGES CXX
 )
 

@@ -1,6 +1,6 @@
 {
   "name": "quicklootie",
-  "version-semver": "4.0.0",
+  "version-semver": "4.2.0",
   "description": "A port of QuickLootEE to NG for one DLL for all versions.",
   "homepage": "https://github.com/MissCorruption/QuickLootIE",
   "license": "GPL-3.0-or-later",

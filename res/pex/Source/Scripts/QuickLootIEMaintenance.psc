@@ -54,8 +54,8 @@ endfunction
 
 function InitCurrentVersion()
 	CurrentVersionMajor = 4
-	CurrentVersionMinor = 1
-	CurrentVersionPatch = 3
+	CurrentVersionMinor = 2
+	CurrentVersionPatch = 0
 	CurrentVersionTweak = 0
 
 	CurrentVersionNumber = CombineVersionNumber(CurrentVersionMajor, CurrentVersionMinor, CurrentVersionPatch, CurrentVersionTweak)

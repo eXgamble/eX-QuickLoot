@@ -467,8 +467,8 @@ string function GetEnabledStatusText(bool enabled, bool installed = true)
 	return "$qlie_Disabled"
 endfunction
 
-function ShowMsg(string message)
-	ShowMessage(message, false, "$qlie_ConfirmY", "$qlie_ConfirmN")
+function ShowMsg(string a_message)
+	ShowMessage(a_message, false, "$qlie_ConfirmY", "$qlie_ConfirmN")
 endfunction
 
 ;---------------------------------------------------
@@ -1056,8 +1056,8 @@ state state_InfoColumnString
 		SetInputDialogStartText(StringJoin(QLIE_InfoColumns))
 	endevent
 
-	event OnInputAcceptST(string input)
-		SetInfoColumns(input, -1) ; Custom
+	event OnInputAcceptST(string a_input)
+		SetInfoColumns(a_input, -1) ; Custom
 	endevent
 
 	event OnDefaultST()
