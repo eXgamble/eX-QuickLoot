@@ -672,7 +672,7 @@ namespace QuickLoot
 				moreOptions.emplace_back(more.label.c_str(), static_cast<uint16_t>(index), more.crime, keybinding.action);
 			}
 		}
-		const bool moreHeld = !moreOptions.empty() && Input::InputManager::IsMoreLive();
+		const bool moreHeld = !moreOptions.empty() && Input::InputManager::IsMoreKeyDown();  // as RefreshButtonBar (SKY-200)
 
 		const auto lockLevel = ShowsLock() ? static_cast<int32_t>(_container.get()->GetLockLevel()) : -1;
 
@@ -815,7 +815,10 @@ namespace QuickLoot
 
 		PROFILE_SCOPE;
 
-		const auto keybindings = Input::InputManager::GetButtonBarKeybindings();
+		// Fork (SKY-200): More counts as held when its key is down and this window has options, read now;
+		// the keybindings' own state lags a task behind a change in the option count.
+		const bool moreHeld = !_perkOptions.empty() && Input::InputManager::IsMoreKeyDown();
+		const auto keybindings = Input::InputManager::GetButtonBarKeybindings(moreHeld);
 		const bool stealing = WouldBeStealing();
 		RE::BSTArray<API::ButtonDefinition2> buttons{};
 
@@ -857,7 +860,7 @@ namespace QuickLoot
 		}
 
 		// Fork: [LB] More always sits at the end of the bar when the target has perk options.
-		if (!showsLock && !_perkOptions.empty() && !Input::InputManager::IsMoreLive()) {
+		if (!showsLock && !_perkOptions.empty() && !moreHeld) {
 			const auto index = Input::ButtonArt::GetFrameIndexForDeviceKey(Input::InputManager::GetMoreKey());
 			buttons.emplace_back("$qlie_More", static_cast<uint16_t>(index), false, API::QuickLootAction::kNone);
 		}

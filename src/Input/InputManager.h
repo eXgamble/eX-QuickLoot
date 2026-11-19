@@ -25,7 +25,9 @@ namespace QuickLoot::Input
 		static void HandleButtonEvent(const RE::ButtonEvent* event);
 		static void HandleThumbstickEvent(const RE::ThumbstickEvent* event);
 
-		static std::vector<Keybinding> GetButtonBarKeybindings();
+		// Fork: moreHeld picks the More slots (true) or Take and Transfer (false) by the window's own state,
+		// not by the keybindings' modifier states, which only catch up a task after the option count changes.
+		static std::vector<Keybinding> GetButtonBarKeybindings(bool moreHeld);
 		// Fork: the More slots' keybindings on the device in use, whether More is held or not.
 		static std::vector<Keybinding> GetMoreSlotKeybindings();
 
@@ -34,10 +36,13 @@ namespace QuickLoot::Input
 		static void SetPerkOptionCount(int count);
 		static DeviceKey GetMoreKey();
 		static bool IsMoreLive() { return _moreLive.load(); }
+		// Fork: the More key is down (keyboard or pad), whether or not the target has options.
+		static bool IsMoreKeyDown() { return _moreKeyDown.load(); }
 
 	private:
 		static inline std::atomic<int> _perkOptionCount{ 0 };
 		static inline std::atomic<bool> _moreLive{ false };
+		static inline std::atomic<bool> _moreKeyDown{ false };
 		static inline DeviceKey _moreKeyKeyboard = DeviceKey::Get(KeyboardKey::kLeftShift);
 		static inline DeviceKey _moreKeyGamepad = DeviceKey::Get(GamepadInput::kLeftShoulder);
 		// The game controls of More slots 2 and 3: MKF's own (sSlot2Control / sSlot3Control in its ini).

@@ -297,7 +297,7 @@ namespace QuickLoot::Input
 		return func(_this);
 	}
 
-	std::vector<Keybinding> InputManager::GetButtonBarKeybindings()
+	std::vector<Keybinding> InputManager::GetButtonBarKeybindings(bool moreHeld)
 	{
 		std::vector<Keybinding> filtered{};
 
@@ -305,10 +305,20 @@ namespace QuickLoot::Input
 		const bool isGamepad = !isVr && QUsingGamepad(RE::BSInputDeviceManager::GetSingleton());
 
 		std::ranges::copy_if(_keybindings, std::back_inserter(filtered), [=](const Keybinding& keybinding) {
-			return keybinding.group == ControlGroup::kButtonBar &&
-			       keybinding.isModifierSatisfied &&
-			       (keybinding.inputKey.deviceType == DeviceType::kGamepad) == isGamepad &&
-			       (keybinding.inputKey.deviceType == DeviceType::kOculusPrimary) == isVr;
+			if (keybinding.group != ControlGroup::kButtonBar ||
+				(keybinding.inputKey.deviceType == DeviceType::kGamepad) != isGamepad ||
+				(keybinding.inputKey.deviceType == DeviceType::kOculusPrimary) != isVr) {
+				return false;
+			}
+			if (isVr) {
+				return keybinding.isModifierSatisfied;
+			}
+			// Fork (SKY-200): the More slots while More is held over options, else the plain keys. A window
+			// opened with More still held used to draw Take / Transfer / More first and swap a task later.
+			if (IsPerkOptionAction(keybinding.action)) {
+				return moreHeld;
+			}
+			return !moreHeld && (!keybinding.modifierKey || keybinding.isModifierSatisfied);
 		});
 
 		return filtered;
@@ -576,6 +586,12 @@ namespace QuickLoot::Input
 
 		if (moreLive != _moreLive.load()) {
 			SetMoreLive(moreLive);
+			requiresButtonBarUpdate = true;
+		}
+
+		// Fork (SKY-200): the bar decides from the key itself (LootMenu::RefreshButtonBar).
+		const bool moreKeyDown = !REL::Module::IsVR() && (IsKeyPressed(_moreKeyKeyboard) || IsKeyPressed(_moreKeyGamepad));
+		if (_moreKeyDown.exchange(moreKeyDown) != moreKeyDown) {
 			requiresButtonBarUpdate = true;
 		}
 
