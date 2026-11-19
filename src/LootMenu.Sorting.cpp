@@ -1,4 +1,5 @@
 #include "LootMenu.h"
+#include "Config/Papyrus.h"
 #include "RE/F/FormTypes.h"
 #include "Util/Profiler.h"
 
@@ -286,7 +287,13 @@ namespace QuickLoot
 
 		std::vector<SortRule> selectedRules{};
 
-		for (auto& ruleName : Config::UserSettings::GetActiveSortRules()) {
+		// Fork (SKY-206): no rules set means the default preset, the same one the MCM starts with. An empty
+		// list used to sort by name only until the MCM had initialised, then by weight: the same body
+		// changed order mid-game, and the ini (no SkyUI) never matched the MCM.
+		static const std::vector<std::string> defaultRules(SortingPresets_Default.begin(), SortingPresets_Default.end());
+		const auto& activeRules = Config::UserSettings::GetActiveSortRules();
+
+		for (auto& ruleName : activeRules.empty() ? defaultRules : activeRules) {
 			const auto it = ruleTable.find(ruleName);
 			if (it != ruleTable.end()) {
 				selectedRules.push_back(it->second);
